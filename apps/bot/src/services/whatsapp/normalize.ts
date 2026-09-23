@@ -51,6 +51,13 @@ function normalizeOne(
   message: WaMessage,
   profileName: string | null,
 ): IncomingMessage | null {
+  // Meta manda tipos que el schema de arriba no modela (p. ej. `system`,
+  // cuando un contacto cambia de número) y esos SÍ pueden llegar sin `from`,
+  // aunque el tipo diga que siempre está. Sin este descarte, `phone` llega
+  // `undefined` hasta el INSERT y revienta el NOT NULL de "conversations" —
+  // ya pasó en producción con una notificación de cambio de número.
+  if (typeof message.from !== "string" || message.from.length === 0) return null;
+
   const base = {
     waMessageId: message.id,
     phone: message.from,
