@@ -27,6 +27,7 @@ export default async function Page({
       token={payload ? (t ?? null) : null}
       business={{
         name: BUSINESS.name,
+        tagline: BUSINESS.tagline,
         hours: BUSINESS.hours,
         address: BUSINESS.address,
         deliveryFee: BUSINESS.deliveryFee,

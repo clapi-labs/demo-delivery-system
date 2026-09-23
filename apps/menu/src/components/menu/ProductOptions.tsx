@@ -54,7 +54,7 @@ export function ProductOptions({ product, onClose, onConfirm }: Props) {
       <div className="relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[14px] border-t border-border-strong bg-surface sm:max-w-md sm:rounded-[14px] sm:border">
         <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 className="font-display text-2xl leading-none">{product.name}</h2>
+            <h2 className="font-display text-2xl leading-none text-flour">{product.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{product.description}</p>
           </div>
           <button
@@ -82,13 +82,13 @@ export function ProductOptions({ product, onClose, onConfirm }: Props) {
                       onClick={() => toggle(group.id, option.id, group.type)}
                       className={`flex w-full items-center justify-between rounded-[8px] border px-3 py-2 text-left text-sm transition-colors ${
                         checked
-                          ? "border-accent bg-accent/10 text-foreground"
+                          ? "border-ember bg-ember/10 text-foreground"
                           : "border-border text-muted-foreground hover:border-border-strong"
                       }`}
                     >
                       <span>{option.name}</span>
                       {option.priceDelta !== 0 ? (
-                        <span>
+                        <span className="tnum">
                           {option.priceDelta > 0 ? "+" : ""}
                           {formatCOP(option.priceDelta)}
                         </span>
@@ -111,7 +111,9 @@ export function ProductOptions({ product, onClose, onConfirm }: Props) {
               >
                 −
               </button>
-              <span className="w-8 text-center font-display text-lg">{quantity}</span>
+              <span className="tnum w-8 text-center text-lg font-semibold text-flour">
+                {quantity}
+              </span>
               <button
                 onClick={() => setQuantity((q) => q + 1)}
                 aria-label="Agregar una unidad"
@@ -120,7 +122,7 @@ export function ProductOptions({ product, onClose, onConfirm }: Props) {
                 +
               </button>
             </div>
-            <span className="font-display text-xl text-accent">
+            <span className="display-price text-ember">
               {formatCOP(unitPrice * quantity)}
             </span>
           </div>
@@ -128,14 +130,14 @@ export function ProductOptions({ product, onClose, onConfirm }: Props) {
             <button
               disabled={missingRequired}
               onClick={() => onConfirm(optionIds, quantity, false)}
-              className="h-12 rounded-[8px] border border-border-strong bg-secondary text-sm font-semibold uppercase tracking-[0.1em] text-secondary-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground"
+              className="h-12 rounded-[8px] border border-border-strong bg-secondary text-sm font-medium text-secondary-foreground transition-colors hover:border-ember disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground"
             >
               Agregar
             </button>
             <button
               disabled={missingRequired}
               onClick={() => onConfirm(optionIds, quantity, true)}
-              className="h-12 rounded-[8px] bg-primary text-sm font-semibold uppercase tracking-[0.1em] text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+              className="h-12 rounded-[8px] bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
             >
               Ir a pagar
             </button>

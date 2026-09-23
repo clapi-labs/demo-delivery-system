@@ -19,7 +19,10 @@ function envInt(key: string, fallback: number) {
 }
 
 export const BUSINESS = {
-  name: env("BUSINESS_NAME", "Sabor Urbano"),
+  name: env("BUSINESS_NAME", "Brasa & Pan"),
+  /** Una línea, para el héroe del menú. Opcional a propósito: sin ella el
+   *  héroe se queda solo con el horario y la dirección. */
+  tagline: env("BUSINESS_TAGLINE", ""),
   hours: env("BUSINESS_HOURS", "Lunes a domingo, 11:00 a.m. a 10:00 p.m."),
   /** Horario en formato 24 h para la comprobación automática. */
   opensAt: envInt("BUSINESS_OPENS_HOUR", 11),

@@ -153,7 +153,7 @@ export function CartPanel({
             {!result && lines.length > 0 ? (
               <p className="eyebrow">{step === "cart" ? "Paso 1 de 2" : "Paso 2 de 2"}</p>
             ) : null}
-            <h2 className="font-display text-2xl leading-none">
+            <h2 className="font-display text-2xl leading-none text-flour">
               {result ? "Pedido guardado" : step === "cart" ? "Tu pedido" : "Tus datos"}
             </h2>
           </div>
@@ -181,7 +181,7 @@ export function CartPanel({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Tu nombre"
-                  className="mt-2 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
+                  className="mt-2 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
                 />
               </label>
 
@@ -192,7 +192,7 @@ export function CartPanel({
                   onChange={(e) => setAddress(e.target.value)}
                   rows={3}
                   placeholder="Calle 10 #20-30, apto 301, barrio Centro. Punto de referencia: al lado de la panadería."
-                  className="mt-2 w-full resize-none rounded-[8px] border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
+                  className="mt-2 w-full resize-none rounded-[8px] border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
                 />
                 <span className="mt-1.5 block text-xs text-muted-foreground">
                   Incluye el barrio y algún punto de referencia — es lo que hace que
@@ -209,13 +209,11 @@ export function CartPanel({
                       onClick={() => setPayment(opt.value)}
                       className={`rounded-[8px] border px-2 py-3 text-center transition-colors ${
                         payment === opt.value
-                          ? "border-accent bg-accent text-accent-foreground"
+                          ? "border-ember bg-ember text-background"
                           : "border-border bg-secondary text-muted-foreground hover:border-border-strong hover:text-foreground"
                       }`}
                     >
-                      <span className="block text-xs font-semibold uppercase tracking-[0.1em]">
-                        {opt.label}
-                      </span>
+                      <span className="block text-sm font-medium">{opt.label}</span>
                       <span className="mt-0.5 block text-[11px] opacity-80">{opt.hint}</span>
                     </button>
                   ))}
@@ -246,8 +244,8 @@ export function CartPanel({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="truncate text-sm font-semibold">{l.product.name}</p>
-                      <span className="shrink-0 font-display text-base text-accent">
+                      <p className="truncate text-sm font-semibold text-flour">{l.product.name}</p>
+                      <span className="tnum shrink-0 text-base font-semibold text-ember">
                         {formatCOP(l.unitPrice * l.quantity)}
                       </span>
                     </div>
@@ -276,7 +274,7 @@ export function CartPanel({
                       </div>
                       <button
                         onClick={() => onRemoveLine(l)}
-                        className="text-xs uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-destructive"
+                        className="text-xs text-muted-foreground transition-colors hover:text-destructive"
                       >
                         Eliminar
                       </button>
@@ -294,15 +292,15 @@ export function CartPanel({
             <div className="space-y-1 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal</span>
-                <span>{formatCOP(subtotal)}</span>
+                <span className="tnum">{formatCOP(subtotal)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Domicilio</span>
-                <span>{formatCOP(deliveryFee)}</span>
+                <span className="tnum">{formatCOP(deliveryFee)}</span>
               </div>
               <div className="flex items-baseline justify-between pt-1">
                 <span className="eyebrow">Total</span>
-                <span className="font-display text-2xl text-accent">{formatCOP(total)}</span>
+                <span className="tnum font-display text-2xl text-ember">{formatCOP(total)}</span>
               </div>
             </div>
 
@@ -310,7 +308,7 @@ export function CartPanel({
               {step === "data" ? (
                 <button
                   onClick={() => setStep("cart")}
-                  className="h-12 rounded-[8px] border border-border px-4 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+                  className="h-12 rounded-[8px] border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Atrás
                 </button>
@@ -319,7 +317,7 @@ export function CartPanel({
               {step === "cart" ? (
                 <button
                   onClick={() => setStep("data")}
-                  className="h-12 flex-1 rounded-[8px] bg-primary text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="h-12 flex-1 rounded-[8px] bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Continuar
                 </button>
@@ -327,8 +325,9 @@ export function CartPanel({
                 <button
                   disabled={sending || !dataReady}
                   onClick={sendOrder}
-                  className="h-12 flex-1 rounded-[8px] bg-whatsapp text-sm font-semibold uppercase tracking-[0.12em] text-whatsapp-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-medium text-whatsapp-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
                 >
+                  <WhatsAppIcon className="h-5 w-5" />
                   {sending ? "Enviando…" : "Enviar pedido"}
                 </button>
               )}
@@ -367,8 +366,8 @@ function ResultView({
   if (result.delivered) {
     return (
       <div className="space-y-4 py-8 text-center">
-        <p className="font-display text-3xl">¡Pedido enviado!</p>
-        <p className="text-sm tabular-nums text-muted-foreground">Código {result.code}</p>
+        <p className="font-display text-3xl text-flour">¡Pedido enviado!</p>
+        <p className="tnum text-sm text-muted-foreground">Código {result.code}</p>
         <p className="mx-auto max-w-[34ch] text-sm leading-relaxed text-muted-foreground">
           Ya le mandé tu pedido a {businessName} por WhatsApp. Abre tu chat para ver la
           confirmación y darnos la dirección.
@@ -376,7 +375,7 @@ function ResultView({
         {number ? (
           <a
             href={whatsappChatUrl(number)}
-            className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-semibold uppercase tracking-[0.12em] text-whatsapp-foreground transition-opacity hover:opacity-90"
+            className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-medium text-whatsapp-foreground transition-opacity hover:opacity-90"
           >
             <WhatsAppIcon className="h-5 w-5" />
             Abrir WhatsApp
@@ -390,8 +389,8 @@ function ResultView({
 
   return (
     <div className="space-y-4 py-8 text-center">
-      <p className="font-display text-3xl">Falta un paso</p>
-      <p className="text-sm tabular-nums text-muted-foreground">Código {result.code}</p>
+      <p className="font-display text-3xl text-flour">Falta un paso</p>
+      <p className="tnum text-sm text-muted-foreground">Código {result.code}</p>
       <p className="mx-auto max-w-[34ch] text-sm leading-relaxed text-muted-foreground">
         Abre WhatsApp y <strong className="text-foreground">envía el mensaje</strong> que
         te queda escrito. Tu pedido no llega hasta que lo mandes.
@@ -399,13 +398,13 @@ function ResultView({
       {number ? (
         <a
           href={whatsappChatUrl(number, message)}
-          className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-semibold uppercase tracking-[0.12em] text-whatsapp-foreground transition-opacity hover:opacity-90"
+          className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-medium text-whatsapp-foreground transition-opacity hover:opacity-90"
         >
           <WhatsAppIcon className="h-5 w-5" />
           Abrir WhatsApp y enviar
         </a>
       ) : (
-        <p className="font-display text-lg">{message}</p>
+        <p className="font-display text-lg text-flour">{message}</p>
       )}
     </div>
   );

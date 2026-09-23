@@ -19,9 +19,12 @@ import { CartPanel } from "./CartPanel";
 import { ProductCard } from "./ProductCard";
 import { ProductOptions } from "./ProductOptions";
 import { useCart } from "./use-cart";
+import { useScrollHeat } from "./use-scroll-heat";
+import { useServiceStatus } from "./use-service-status";
 
 type Business = {
   name: string;
+  tagline: string;
   hours: string;
   address: string;
   deliveryFee: number;
@@ -39,19 +42,33 @@ type Props = {
 /**
  * El catálogo público (Fase 4, RF-20 a RF-27).
  *
- * A propósito NO tiene un paso de "tus datos": el menú arma el carrito y lo
- * manda; la dirección y el pago los pide el asistente por chat después de
- * canjear el código (ADR-02, `apps/bot/src/bot/engine.ts`).
+ * A propósito NO tiene un paso de "tus datos" en esta pantalla: el carrito
+ * los pide en su propio paso (`CartPanel`), no acá — el menú arma el pedido
+ * y lo manda.
  */
 export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: Props) {
   const products = useMemo(() => flatten(catalog), [catalog]);
   const cart = useCart(products, initialAdd);
+  const status = useServiceStatus();
+  useScrollHeat();
 
   const [query, setQuery] = useState(initialQuery);
   const [cartOpen, setCartOpen] = useState(false);
   const [active, setActive] = useState(catalog[0]?.slug ?? "");
   const [optionsFor, setOptionsFor] = useState<CatalogProduct | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Cambia en cada añadido para reiniciar la animación del contador.
+  const [bump, setBump] = useState(0);
+
+  /** Precio de entrada por sección: orienta antes de abrir la lista. */
+  const fromPrice = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const c of catalog) {
+      const prices = c.products.map((p) => p.price);
+      if (prices.length) result[c.slug] = Math.min(...prices);
+    }
+    return result;
+  }, [catalog]);
 
   useEffect(() => {
     // Solo al abrir con `?add=` en la URL con la que cargó la página; no hay
@@ -96,7 +113,8 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
 
   const handleQuickAdd = (product: CatalogProduct) => {
     cart.add(product.sku, [], 1);
-    setToast(`${product.name} agregado`);
+    setToast(`${product.name}, agregado`);
+    setBump((b) => b + 1);
   };
   const handleQuickRemove = (product: CatalogProduct) => {
     cart.removeOne(cartLineKey(product.sku, []));
@@ -104,11 +122,12 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
   const handleConfirmOptions = (optionIds: number[], quantity: number, goToCart: boolean) => {
     if (!optionsFor) return;
     cart.add(optionsFor.sku, optionIds, quantity);
+    setBump((b) => b + 1);
     setOptionsFor(null);
     if (goToCart) {
       setCartOpen(true);
     } else {
-      setToast(`${optionsFor.name} agregado`);
+      setToast(`${optionsFor.name}, agregado`);
     }
   };
 
@@ -116,23 +135,27 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 lg:px-8">
-          <a href="#top" className="flex items-baseline gap-2">
-            <span className="font-display text-2xl leading-none tracking-wide">
-              {business.name}
-            </span>
+      {/*
+        La parrilla como material: brasa arriba, ceniza abajo. Fijas al
+        viewport y en z negativo, por detrás de todo lo que se lee — sólo
+        tiñen el aire.
+      */}
+      <div aria-hidden className="heat-ember pointer-events-none fixed inset-0 -z-10" />
+      <div aria-hidden className="heat-ash pointer-events-none fixed inset-0 -z-10" />
+
+      <header className="sticky top-0 z-40 border-b border-border bg-background/92 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 lg:px-8">
+          <a href="#top" className="font-display text-2xl leading-none text-flour">
+            {business.name}
           </a>
 
-          <nav className="hidden items-center gap-6 lg:flex">
+          <nav className="hidden items-center gap-7 lg:flex">
             {catalog.map((c) => (
               <button
                 key={c.slug}
                 onClick={() => goTo(c.slug)}
-                className={`text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${
-                  active === c.slug
-                    ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground"
+                className={`text-sm transition-colors ${
+                  active === c.slug ? "text-ember" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {c.name}
@@ -142,57 +165,72 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
 
           <button
             onClick={() => setCartOpen(true)}
-            className="relative flex h-11 items-center gap-2 rounded-[8px] border border-border-strong bg-secondary px-4 text-xs font-semibold uppercase tracking-[0.14em] transition-colors hover:border-accent"
+            className="relative flex h-11 items-center gap-2.5 rounded-[8px] border border-border-strong bg-secondary px-4 text-sm font-medium transition-colors hover:border-ember"
           >
             Carrito
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-[4px] bg-primary px-1 font-display text-sm text-primary-foreground">
+            <span
+              key={bump}
+              className="count-bump tnum flex h-6 min-w-6 items-center justify-center rounded-[4px] bg-primary px-1 text-sm font-semibold text-primary-foreground"
+            >
               {cart.count}
             </span>
           </button>
         </div>
       </header>
 
-      <section id="top" className="relative">
+      <section id="top" className="relative isolate">
         <Image
           src={heroImage}
-          alt="Parrilla en la cocina"
+          alt="Parrilla de carbón encendida en la cocina"
           priority
           sizes="100vw"
-          className="h-[46vh] min-h-[280px] w-full object-cover sm:h-[52vh]"
+          className="h-[58vh] min-h-[340px] w-full object-cover sm:h-[62vh]"
         />
-        <div className="absolute inset-0 bg-background/55" />
+        <div aria-hidden className="hero-scrim absolute inset-0" />
+        <div aria-hidden className="hero-heat ember-glow absolute inset-0" />
+        <div aria-hidden className="hero-fade absolute inset-0" />
+
         <div className="absolute inset-0 flex items-end">
-          <div className="mx-auto w-full max-w-6xl px-4 pb-8 lg:px-8 lg:pb-12">
-            <p className="eyebrow">{business.hours}</p>
-            <h1 className="mt-2 max-w-xl font-display text-5xl leading-[0.95] sm:text-6xl lg:text-7xl">
-              {business.name}
-            </h1>
-            {business.address ? (
-              <p className="mt-4 max-w-md text-sm text-muted-foreground">{business.address}</p>
-            ) : null}
+          <div className="mx-auto w-full max-w-7xl px-4 pb-9 lg:px-8 lg:pb-14">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  status?.open ? "bg-ember" : "bg-border-strong"
+                }`}
+              />
+              {status ? status.label : business.hours}
+            </p>
+
+            <h1 className="display-hero mt-3 max-w-2xl text-flour">{business.name}</h1>
+
+            <p className="mt-4 max-w-md text-base text-muted-foreground">
+              {business.tagline ? `${business.tagline}. ` : ""}
+              {business.address ? `Estamos en ${business.address} y llevamos a domicilio a toda la ciudad.` : ""}
+            </p>
           </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 pt-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pt-6 lg:px-8">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar en el menú…"
-          className="h-11 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
+          className="h-11 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
         />
       </div>
 
       {!searchResults ? (
-        <div className="sticky top-16 z-30 border-b border-border bg-background/95 backdrop-blur lg:hidden">
+        <div className="sticky top-16 z-30 border-b border-border bg-background/92 backdrop-blur lg:hidden">
           <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-3">
             {catalog.map((c) => (
               <button
                 key={c.slug}
                 onClick={() => goTo(c.slug)}
-                className={`shrink-0 rounded-[6px] border px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition-colors ${
+                className={`shrink-0 rounded-[6px] border px-3.5 py-2 text-sm transition-colors ${
                   active === c.slug
-                    ? "border-accent bg-accent text-accent-foreground"
+                    ? "border-ember bg-ember text-background"
                     : "border-border bg-secondary text-muted-foreground"
                 }`}
               >
@@ -203,28 +241,49 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
         </div>
       ) : null}
 
-      <main className="mx-auto max-w-6xl px-4 pb-32 lg:flex lg:gap-12 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 pb-32 lg:flex lg:gap-20 lg:px-8">
+        {/*
+          Índice de la carta. El filete vertical es la espina: la sección en
+          la que estás se marca con un tramo de brasa sobre ese mismo filete.
+        */}
         {!searchResults ? (
-          <aside className="hidden w-48 shrink-0 lg:block">
-            <div className="sticky top-28 py-12">
-              <p className="eyebrow">Carta</p>
-              <ul className="mt-4 space-y-3">
-                {catalog.map((c) => (
-                  <li key={c.slug}>
-                    <button
-                      onClick={() => goTo(c.slug)}
-                      className={`text-left text-sm transition-colors ${
-                        active === c.slug
-                          ? "text-accent"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {c.name}
-                    </button>
-                  </li>
-                ))}
+          <aside className="hidden w-80 shrink-0 lg:block">
+            <nav
+              aria-label="Secciones de la carta"
+              className="no-scrollbar sticky top-28 max-h-[calc(100dvh-9rem)] overflow-y-auto py-14"
+            >
+              <ul className="border-l border-border">
+                {catalog.map((c) => {
+                  const here = active === c.slug;
+                  return (
+                    <li key={c.slug} className="relative">
+                      <span
+                        aria-hidden
+                        className={`absolute -left-px top-0 h-full w-[2px] transition-colors ${
+                          here ? "bg-ember" : "bg-transparent"
+                        }`}
+                      />
+                      <button
+                        onClick={() => goTo(c.slug)}
+                        aria-current={here ? "true" : undefined}
+                        className={`flex w-full items-baseline justify-between gap-4 py-5 pl-8 pr-3 text-left transition-colors ${
+                          here ? "text-ember" : "text-muted-foreground hover:text-flour"
+                        }`}
+                      >
+                        <span className="display-item">{c.name}</span>
+                        <span
+                          className={`tnum text-sm transition-colors ${
+                            here ? "text-ember/70" : "text-muted-foreground/60"
+                          }`}
+                        >
+                          {c.products.length}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
-            </div>
+            </nav>
           </aside>
         ) : null}
 
@@ -232,10 +291,10 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
           {searchResults ? (
             <section>
               <div className="border-b border-border-strong pb-3">
-                <h2 className="font-display text-3xl leading-none sm:text-4xl">
+                <h2 className="display-section text-flour">
                   Resultados para &ldquo;{query}&rdquo;
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1.5 text-sm text-muted-foreground">
                   {searchResults.length === 0
                     ? "No encontramos nada con ese nombre."
                     : `${searchResults.length} ${searchResults.length === 1 ? "opción" : "opciones"}`}
@@ -256,13 +315,22 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
             </section>
           ) : (
             catalog.map((c) => (
-              <section key={c.slug} id={c.slug} className="scroll-mt-32 pt-10 lg:pt-14">
-                <div className="flex items-end justify-between gap-4 border-b border-border-strong pb-3">
-                  <h2 className="font-display text-3xl leading-none sm:text-4xl">{c.name}</h2>
-                  <span className="font-display text-sm text-muted-foreground">
-                    {c.products.length} opciones
-                  </span>
+              <section key={c.slug} id={c.slug} className="scroll-mt-32 pt-12 lg:pt-16">
+                <div className="relative flex items-end justify-between gap-4 border-b border-border-strong pb-3">
+                  <span
+                    aria-hidden
+                    className={`section-coal pointer-events-none absolute -z-10 transition-opacity duration-700 ${
+                      active === c.slug ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                  <h2 className="display-section text-flour">{c.name}</h2>
+                  {fromPrice[c.slug] ? (
+                    <p className="tnum shrink-0 pb-1 text-sm text-muted-foreground">
+                      Desde {formatCOP(fromPrice[c.slug]!)}
+                    </p>
+                  ) : null}
                 </div>
+
                 <div className="sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
                   {c.products.map((p) => (
                     <ProductCard
@@ -279,12 +347,11 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
             ))
           )}
 
-          <footer className="mt-20 border-t border-border pt-8 text-sm text-muted-foreground">
-            <p className="font-display text-xl text-foreground">{business.name}</p>
-            <p className="mt-2">
-              {business.address ? `${business.address} · ` : ""}
-              {business.hours}
-            </p>
+          <footer className="mt-24 border-t border-border pt-8 text-sm text-muted-foreground">
+            <p className="font-display text-2xl text-flour">{business.name}</p>
+            <p className="mt-3">{business.address}</p>
+            <p>{business.hours}</p>
+            <p className="mt-3">Domicilios en toda la ciudad. Los pedidos se confirman por WhatsApp.</p>
           </footer>
         </div>
       </main>
@@ -293,18 +360,21 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border-strong bg-surface px-4 py-3 lg:hidden">
           <button
             onClick={() => setCartOpen(true)}
-            className="flex h-13 w-full items-center justify-between rounded-[8px] bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground"
+            className="flex h-13 w-full items-center justify-between rounded-[8px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground"
           >
             <span>
-              Ver pedido · {cart.count} {cart.count === 1 ? "producto" : "productos"}
+              Ver pedido, {cart.count} {cart.count === 1 ? "producto" : "productos"}
             </span>
-            <span className="font-display text-lg">{formatCOP(cart.subtotal)}</span>
+            <span className="tnum text-base font-semibold">{formatCOP(cart.subtotal)}</span>
           </button>
         </div>
       ) : null}
 
       {toast ? (
-        <div className="fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-[6px] border border-border-strong bg-surface-2 px-4 py-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+        <div
+          role="status"
+          className="fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-[6px] border border-ember/40 bg-surface-2 px-4 py-2 text-sm text-foreground shadow-[0_12px_32px_-12px_rgba(0,0,0,0.8)]"
+        >
           {toast}
         </div>
       ) : null}
