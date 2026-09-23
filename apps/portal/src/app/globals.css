@@ -1,74 +1,191 @@
 @import "tailwindcss";
 
 /*
- * Portal — SaaS corporativo, sobrio. Fondo claro, sidebar oscuro, acentos en
- * azul. Sin gradientes, sin glow, radios pequeños. Tablas y listas por
- * encima de tarjetas.
+ * Portal — herramienta de trabajo para la cocina y la caja.
+ *
+ * Fondo claro (se usa de día, en un celular, al lado de la plancha), un riel
+ * oscuro que es el mismo carbón del menú público, y el ámbar-brasa del menú
+ * como color de marca. La misma familia tipográfica que el menú (Barlow):
+ * la condensada carga los códigos de pedido, los tiempos y las cifras.
+ *
+ * Cada estado del pedido tiene su color y SIEMPRE va con su texto: el color
+ * ayuda a ubicarse de un vistazo, nunca es la única señal.
  */
 
 @theme inline {
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   --font-sans: var(--nf-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--nf-display), "Arial Narrow", ui-sans-serif, sans-serif;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
   --color-surface: var(--surface);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
 
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-muted: var(--sidebar-muted);
-  --color-sidebar-active: var(--sidebar-active);
-  --color-sidebar-border: var(--sidebar-border);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-whatsapp: var(--whatsapp);
+  --color-whatsapp-ink: var(--whatsapp-ink);
+  --color-whatsapp-soft: var(--whatsapp-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-rail: var(--rail);
+  --color-rail-fg: var(--rail-fg);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-active: var(--rail-active);
+  --color-rail-line: var(--rail-line);
+
+  /* Estados del pedido: punto (fuerte), fondo (suave), texto (legible). */
+  --color-st-new: var(--st-new);
+  --color-st-new-soft: var(--st-new-soft);
+  --color-st-new-ink: var(--st-new-ink);
+  --color-st-prep: var(--st-prep);
+  --color-st-prep-soft: var(--st-prep-soft);
+  --color-st-prep-ink: var(--st-prep-ink);
+  --color-st-sent: var(--st-sent);
+  --color-st-sent-soft: var(--st-sent-soft);
+  --color-st-sent-ink: var(--st-sent-ink);
+  --color-st-done: var(--st-done);
+  --color-st-done-soft: var(--st-done-soft);
+  --color-st-done-ink: var(--st-done-ink);
+  --color-st-off: var(--st-off);
+  --color-st-off-soft: var(--st-off-soft);
+  --color-st-off-ink: var(--st-off-ink);
 }
 
 :root {
-  --background: oklch(0.99 0.002 260);
-  --foreground: oklch(0.22 0.014 260);
+  --canvas: oklch(0.972 0.003 75);
   --surface: oklch(1 0 0);
-  --muted: oklch(0.96 0.004 260);
-  --muted-foreground: oklch(0.5 0.012 260);
-  --border: oklch(0.9 0.006 260);
+  --sunken: oklch(0.955 0.004 75);
+  --ink: oklch(0.21 0.008 60);
+  --ink-2: oklch(0.45 0.01 60);
+  --ink-3: oklch(0.6 0.01 60);
+  --line: oklch(0.91 0.004 70);
+  --line-strong: oklch(0.84 0.006 70);
 
-  --primary: oklch(0.47 0.14 259);
-  --primary-foreground: oklch(0.98 0.005 260);
+  --brand: oklch(0.55 0.13 45);
+  --brand-ink: oklch(0.47 0.12 45);
+  --brand-soft: oklch(0.955 0.025 55);
 
-  --destructive: oklch(0.55 0.16 25);
-  --destructive-foreground: oklch(0.98 0.005 260);
+  --whatsapp: oklch(0.6 0.14 152);
+  --whatsapp-ink: oklch(0.42 0.1 152);
+  --whatsapp-soft: oklch(0.955 0.035 152);
 
-  --sidebar: oklch(0.2 0.018 260);
-  --sidebar-foreground: oklch(0.92 0.006 260);
-  --sidebar-muted: oklch(0.65 0.014 260);
-  --sidebar-active: oklch(0.29 0.024 260);
-  --sidebar-border: oklch(0.3 0.02 260);
+  --danger: oklch(0.54 0.19 27);
+  --danger-soft: oklch(0.96 0.025 27);
+
+  --rail: oklch(0.17 0.008 60);
+  --rail-fg: oklch(0.95 0.006 80);
+  --rail-muted: oklch(0.68 0.01 70);
+  --rail-active: oklch(0.25 0.01 60);
+  --rail-line: oklch(0.27 0.01 60);
+
+  --st-new: oklch(0.6 0.18 35);
+  --st-new-soft: oklch(0.96 0.03 40);
+  --st-new-ink: oklch(0.47 0.15 35);
+  --st-prep: oklch(0.76 0.15 75);
+  --st-prep-soft: oklch(0.965 0.045 85);
+  --st-prep-ink: oklch(0.49 0.1 65);
+  --st-sent: oklch(0.57 0.15 255);
+  --st-sent-soft: oklch(0.96 0.025 255);
+  --st-sent-ink: oklch(0.46 0.15 258);
+  --st-done: oklch(0.6 0.13 152);
+  --st-done-soft: oklch(0.96 0.03 152);
+  --st-done-ink: oklch(0.43 0.1 152);
+  --st-off: oklch(0.65 0.01 70);
+  --st-off-soft: oklch(0.95 0.004 70);
+  --st-off-ink: oklch(0.46 0.01 60);
 }
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
 }
 
-@utility eyebrow {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted-foreground);
+/* Aparición de un pedido o un mensaje nuevo: la única animación que no
+ * responde a un toque, porque su trabajo es justamente llamar la atención. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-arrive {
+  animation: arrive 260ms ease-out both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-toast {
+  animation: toast-in 200ms ease-out both;
+}
+
+/* El espacio que ocupa la barra inferior del celular, con el área segura del
+ * iPhone incluida. Un solo lugar para que el contenido y los avisos no queden
+ * tapados por ella. */
+@utility pb-tabbar {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+@utility bottom-tabbar {
+  bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

@@ -1,317 +1,287 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 
-import { formatCOP, formatPhone } from "@sistema/shared";
+import { normalize } from "@sistema/shared";
 
-import { Panel } from "@/components/Panel";
-import { StatusBadge } from "@/components/StatusBadge";
+import { CloseIcon, SearchIcon, SwipeIcon } from "@/components/icons";
+import { OrderTicket } from "@/components/orders/OrderTicket";
+import { useOrders } from "@/components/providers/OrdersProvider";
+import { EmptyState, PageHeader, SearchField, Segmented } from "@/components/ui";
 import {
-  ORDER_STATUS_ACTION_LABEL,
-  ORDER_STATUS_LABEL,
-  minutesSince,
-  nextOrderStatus,
-  paymentLabel,
-  relativeTime,
-  type OrderStatus,
-} from "@/lib/demo-data";
+  ACTIVE_STATUSES,
+  ORDER_COLUMN_LABEL,
+  STATUS_TONE,
+  type ActiveStatus,
+  type PortalOrder,
+} from "@/lib/orders";
+import { useNow } from "@/lib/use-now";
 
-/** Lo que devuelve `GET /api/orders` — el pedido real, ya sin borradores. */
-type PortalOrder = {
-  id: number;
-  code: string;
-  status: OrderStatus;
-  phone: string | null;
-  customerName: string | null;
-  address: string | null;
-  paymentMethod: string | null;
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  createdAt: string;
-  items: {
-    name: string;
-    quantity: number;
-    unitPrice: number;
-    lineTotal: number;
-    options: { group: string; name: string; priceDelta: number }[];
-  }[];
+type Tab = ActiveStatus | "history";
+
+const EMPTY_COLUMN: Record<ActiveStatus, string> = {
+  pending: "Sin pedidos nuevos. Cuando un cliente envíe el suyo, aparece aquí solo.",
+  preparing: "Nada en la cocina ahora mismo.",
+  sent: "Ningún pedido en camino.",
 };
 
-const TABS: { label: string; status: OrderStatus | "all" }[] = [
-  { label: "Todos", status: "all" },
-  { label: "Nuevos", status: "pending" },
-  { label: "En preparación", status: "preparing" },
-  { label: "Enviados", status: "sent" },
-  { label: "Entregados", status: "delivered" },
-];
+/** En el celular caben cuatro contadores de ancho si los nombres son cortos. */
+const SHORT_LABEL: Record<ActiveStatus, string> = {
+  pending: "Nuevos",
+  preparing: "Preparando",
+  sent: "Enviados",
+};
 
-/** Cada cuánto se refresca el tablero. Un pedido que entra tiene que
- *  aparecer solo: nadie en una cocina va a estar recargando la página. */
-const POLL_MS = 5000;
+const HINT_KEY = "portal:swipe-hint-dismissed";
 
-function itemsSummary(order: PortalOrder) {
-  return order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ");
+function matches(order: PortalOrder, q: string) {
+  if (!q) return true;
+  return (
+    normalize(order.code).includes(q) ||
+    normalize(order.customerName ?? "").includes(q) ||
+    (order.phone ?? "").includes(q) ||
+    order.items.some((i) => normalize(i.name).includes(q))
+  );
 }
 
+/**
+ * El tablero de pedidos (RF-28, RF-29).
+ *
+ * En pantalla grande: tres columnas, de izquierda a derecha el camino del
+ * pedido. En el celular: una columna a la vez, elegida con los contadores de
+ * arriba, y cada pedido se avanza deslizándolo o con su botón.
+ */
 export default function PedidosPage() {
-  const [orders, setOrders] = useState<PortalOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<OrderStatus | "all">("all");
+  const { orders, loading, error, freshIds, advance, setStatus } = useOrders();
+  const now = useNow();
+  const [tab, setTab] = useState<Tab>("pending");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [dragOver, setDragOver] = useState<ActiveStatus | null>(null);
+  const [showHint, setShowHint] = useState(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    // localStorage solo existe en el navegador; leerlo al montar evita que el
+    // servidor y el cliente pinten cosas distintas.
     try {
-      const res = await fetch("/api/orders");
-      if (!res.ok) return;
-      const data = (await res.json()) as { orders: PortalOrder[] };
-      setOrders(data.orders);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowHint(localStorage.getItem(HINT_KEY) !== "1");
     } catch {
-      // Un fallo de red puntual no borra lo que ya está en pantalla: la cocina
-      // prefiere datos de hace 5 segundos que una tabla vacía.
-    } finally {
-      setLoading(false);
+      setShowHint(true);
     }
   }, []);
 
-  useEffect(() => {
-    // Traer del servidor ES sincronizar con un sistema externo, que es
-    // justo para lo que sirve un efecto; la regla apunta a otra cosa.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
-    const id = setInterval(load, POLL_MS);
-    return () => clearInterval(id);
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return orders
-      .filter((o) => tab === "all" || o.status === tab)
-      .filter(
-        (o) =>
-          !q ||
-          o.code.toLowerCase().includes(q) ||
-          (o.customerName ?? "").toLowerCase().includes(q) ||
-          (o.phone ?? "").includes(q),
-      );
-  }, [orders, tab, query]);
-
-  const selected = orders.find((o) => o.id === selectedId) ?? null;
-
-  const advance = async (order: PortalOrder) => {
-    const next = nextOrderStatus(order.status);
-    if (!next) return;
-
-    // Optimista: la cocina ve el cambio al instante y el servidor confirma
-    // detrás. Si falla, el siguiente sondeo lo devuelve a su estado real.
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
-
-    await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: order.id, status: next }),
-    }).catch(() => {});
-
-    load();
+  const dismissHint = () => {
+    setShowHint(false);
+    try {
+      localStorage.setItem(HINT_KEY, "1");
+    } catch {}
   };
 
+  const q = normalize(query.trim());
+
+  const columns = useMemo(() => {
+    const byStatus = {} as Record<ActiveStatus, PortalOrder[]>;
+    for (const status of ACTIVE_STATUSES) {
+      // Los más viejos primero: la cocina despacha en orden de llegada.
+      byStatus[status] = orders
+        .filter((o) => o.status === status && matches(o, q))
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
+    return byStatus;
+  }, [orders, q]);
+
+  const history = useMemo(
+    () =>
+      orders
+        .filter((o) => (o.status === "delivered" || o.status === "cancelled") && matches(o, q))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [orders, q],
+  );
+
+  const onDrop = (status: ActiveStatus, e: DragEvent) => {
+    e.preventDefault();
+    setDragOver(null);
+    const id = Number(e.dataTransfer.getData("text/order-id"));
+    const order = orders.find((o) => o.id === id);
+    if (order && order.status !== status) setStatus(order, status);
+  };
+
+  const showingHistory = tab === "history";
+
   return (
-    <div className="mx-auto max-w-5xl px-8 py-8">
-      <h1 className="text-xl font-semibold">Pedidos</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Todo lo que llega desde el menú y el bot de WhatsApp.
-      </p>
-
-      <div className="mt-6 flex items-center justify-between gap-6 border-b border-border">
-        <nav className="flex gap-6">
-          {TABS.map((t) => (
+    <div className="mx-auto max-w-[88rem] px-4 pb-8 pt-5 sm:px-6 lg:px-8 lg:pt-8">
+      <PageHeader
+        title="Pedidos"
+        description={
+          error ? (
+            <span className="text-danger">Sin conexión con el servidor. Reintentando…</span>
+          ) : (
+            "Se actualiza solo cada pocos segundos."
+          )
+        }
+        actions={
+          <>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Buscar pedido, cliente o producto"
+              className="hidden w-72 lg:block"
+            />
             <button
-              key={t.status}
-              onClick={() => setTab(t.status)}
-              className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
-                tab === t.status
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={() => setSearchOpen((v) => !v)}
+              aria-label={searchOpen ? "Cerrar búsqueda" : "Buscar"}
+              className="rounded-lg border border-line bg-surface p-2.5 text-ink-2 lg:hidden"
             >
-              {t.label}
+              {searchOpen ? <CloseIcon /> : <SearchIcon />}
             </button>
-          ))}
-        </nav>
+            <Segmented
+              value={showingHistory ? "history" : "active"}
+              onChange={(v) => setTab(v === "history" ? "history" : "pending")}
+              options={[
+                { value: "active", label: "En curso" },
+                { value: "history", label: "Historial" },
+              ]}
+              className="hidden lg:flex"
+            />
+          </>
+        }
+      />
 
-        <input
+      {searchOpen ? (
+        <SearchField
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por pedido, cliente o teléfono…"
-          className="mb-2 h-9 w-72 rounded-md border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+          onChange={setQuery}
+          placeholder="Buscar pedido, cliente o producto"
+          className="mt-4 lg:hidden"
         />
+      ) : null}
+
+      {/* Celular: los contadores son también las pestañas. */}
+      <div className="sticky top-0 z-10 -mx-4 mt-4 bg-canvas/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden">
+        <div className="grid grid-cols-4 gap-2" role="tablist">
+          {ACTIVE_STATUSES.map((status) => {
+            const active = tab === status;
+            return (
+              <button
+                key={status}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(status)}
+                className={`relative overflow-hidden rounded-lg border px-2 pb-2 pt-2.5 text-left transition-colors ${
+                  active ? "border-ink bg-surface" : "border-line bg-surface/60"
+                }`}
+              >
+                <span className={`absolute inset-x-0 top-0 h-1 ${STATUS_TONE[status].dot}`} />
+                <span className="block font-display text-2xl font-semibold leading-none tabular-nums">
+                  {columns[status].length}
+                </span>
+                <span className={`mt-1 block truncate text-xs ${active ? "font-semibold" : "text-ink-2"}`}>
+                  {SHORT_LABEL[status]}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            role="tab"
+            aria-selected={showingHistory}
+            onClick={() => setTab("history")}
+            className={`rounded-lg border px-2 pb-2 pt-2.5 text-left transition-colors ${
+              showingHistory ? "border-ink bg-surface" : "border-line bg-surface/60"
+            }`}
+          >
+            <span className="block font-display text-2xl font-semibold leading-none tabular-nums">
+              {history.length}
+            </span>
+            <span className={`mt-1 block truncate text-xs ${showingHistory ? "font-semibold" : "text-ink-2"}`}>
+              Historial
+            </span>
+          </button>
+        </div>
       </div>
 
-      <ul className="mt-2 divide-y divide-border">
-        {loading ? (
-          <li className="py-10 text-center text-sm text-muted-foreground">Cargando…</li>
-        ) : filtered.length === 0 ? (
-          <li className="py-10 text-center text-sm text-muted-foreground">
-            {orders.length === 0
-              ? "Todavía no hay pedidos. Cuando un cliente envíe el suyo desde el menú, aparece acá solo."
-              : "No hay pedidos que coincidan."}
-          </li>
-        ) : (
-          filtered.map((order) => (
-            <li key={order.id} className="grid grid-cols-12 items-center gap-4 py-4">
-              <div className="col-span-3">
-                <p className="font-semibold">{order.code}</p>
-                <p className="text-sm text-muted-foreground">
-                  {order.customerName ?? (order.phone ? formatPhone(order.phone) : "Sin nombre")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {relativeTime(minutesSince(order.createdAt))}
-                </p>
-              </div>
-              <div className="col-span-4 text-sm text-muted-foreground">
-                {itemsSummary(order)}
-              </div>
-              <div className="col-span-1 text-sm font-medium tabular-nums">
-                {formatCOP(order.total)}
-              </div>
-              <div className="col-span-2 text-sm text-muted-foreground">
-                {paymentLabel(order.paymentMethod)}
-              </div>
-              <div className="col-span-1">
-                <StatusBadge status={order.status} />
-              </div>
-              <div className="col-span-1 text-right">
-                <button
-                  onClick={() => setSelectedId(order.id)}
-                  className="rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:border-primary hover:text-primary"
-                >
-                  Ver pedido
-                </button>
-              </div>
-            </li>
-          ))
-        )}
-      </ul>
+      {showHint && !showingHistory ? (
+        <div className="mt-2 flex items-center gap-3 rounded-lg bg-surface px-3 py-2.5 text-sm text-ink-2 ring-1 ring-line lg:hidden">
+          <SwipeIcon className="h-5 w-5 shrink-0 text-ink" />
+          <p className="flex-1">Desliza un pedido hacia la derecha para pasarlo al siguiente estado.</p>
+          <button onClick={dismissHint} aria-label="Entendido" className="rounded-md p-1.5 hover:bg-sunken">
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
 
-      <Panel
-        open={selected !== null}
-        onClose={() => setSelectedId(null)}
-        title={selected?.code ?? ""}
-        subtitle={selected ? relativeTime(minutesSince(selected.createdAt)) : undefined}
-        footer={
-          selected ? (
-            <div className="flex items-center justify-between gap-3">
-              <StatusBadge status={selected.status} />
-              {nextOrderStatus(selected.status) ? (
-                <button
-                  onClick={() => advance(selected)}
-                  className="h-10 flex-1 rounded-md bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90"
-                >
-                  {ORDER_STATUS_ACTION_LABEL[selected.status]}
-                </button>
-              ) : (
-                <p className="text-sm text-muted-foreground">Pedido entregado.</p>
-              )}
+      {loading ? (
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={`h-56 animate-pulse rounded-lg bg-sunken ${i > 0 ? "hidden lg:block" : ""}`} />
+          ))}
+        </div>
+      ) : showingHistory ? (
+        <section className="mt-4 lg:mt-6">
+          {history.length === 0 ? (
+            <EmptyState title={q ? "Nada coincide con la búsqueda" : "Todavía no hay pedidos cerrados"}>
+              Aquí quedan los pedidos entregados y cancelados.
+            </EmptyState>
+          ) : (
+            <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {history.map((order) => (
+                <OrderTicket key={order.id} order={order} now={now} onAdvance={advance} onSetStatus={setStatus} />
+              ))}
             </div>
-          ) : null
-        }
-      >
-        {selected ? (
-          <div className="space-y-6">
-            <section>
-              <p className="eyebrow">Información del pedido</p>
-              <dl className="mt-2 space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Cliente</dt>
-                  <dd className="font-medium">{selected.customerName ?? "Sin nombre"}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Teléfono</dt>
-                  <dd>{selected.phone ? formatPhone(selected.phone) : "—"}</dd>
-                </div>
-                <div className="flex justify-between gap-6">
-                  <dt className="shrink-0 text-muted-foreground">Dirección</dt>
-                  <dd className="text-right">{selected.address ?? "Sin confirmar"}</dd>
-                </div>
-              </dl>
-            </section>
+          )}
+        </section>
+      ) : (
+        <div className="mt-4 grid items-start gap-5 lg:mt-6 lg:grid-cols-3">
+          {ACTIVE_STATUSES.map((status) => {
+            const list = columns[status];
+            const tone = STATUS_TONE[status];
+            return (
+              <section
+                key={status}
+                aria-label={ORDER_COLUMN_LABEL[status]}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(status);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null);
+                }}
+                onDrop={(e) => onDrop(status, e)}
+                className={`${tab === status ? "flex" : "hidden lg:flex"} min-h-[50vh] flex-col rounded-xl transition-colors lg:bg-sunken/70 lg:p-3 ${
+                  dragOver === status ? "lg:bg-sunken lg:ring-2 lg:ring-line-strong" : ""
+                }`}
+              >
+                <header className="mb-3 hidden items-center gap-2 px-1 lg:flex">
+                  <span className={`h-2.5 w-2.5 rounded-full ${tone.dot}`} />
+                  <h2 className="font-display text-xl font-semibold">{ORDER_COLUMN_LABEL[status]}</h2>
+                  <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-sm font-semibold tabular-nums text-ink-2 ring-1 ring-line">
+                    {list.length}
+                  </span>
+                </header>
 
-            <section>
-              <p className="eyebrow">Productos</p>
-              <table className="mt-2 w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="py-2 font-medium">Producto</th>
-                    <th className="py-2 text-center font-medium">Cant.</th>
-                    <th className="py-2 text-right font-medium">Precio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selected.items.map((item, i) => (
-                    <tr key={i} className="border-b border-border last:border-0">
-                      <td className="py-2">
-                        {item.name}
-                        {item.options.length > 0 ? (
-                          <span className="block text-xs text-muted-foreground">
-                            {item.options.map((o) => o.name).join(", ")}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="py-2 text-center tabular-nums">{item.quantity}</td>
-                      <td className="py-2 text-right tabular-nums">
-                        {formatCOP(item.lineTotal)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-
-            <section className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
-                <span className="tabular-nums">{formatCOP(selected.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Domicilio</span>
-                <span className="tabular-nums">{formatCOP(selected.deliveryFee)}</span>
-              </div>
-              <div className="flex justify-between text-base font-semibold">
-                <span>Total</span>
-                <span className="tabular-nums">{formatCOP(selected.total)}</span>
-              </div>
-              <div className="flex justify-between pt-1 text-muted-foreground">
-                <span>Pago</span>
-                <span>{paymentLabel(selected.paymentMethod)}</span>
-              </div>
-            </section>
-
-            <section>
-              <p className="eyebrow">Estado</p>
-              <ol className="mt-3 flex items-center gap-2 text-xs">
-                {(["pending", "preparing", "sent", "delivered"] as OrderStatus[]).map((s, i) => {
-                  const reached =
-                    (["pending", "preparing", "sent", "delivered"] as OrderStatus[]).indexOf(
-                      selected.status,
-                    ) >= i;
-                  return (
-                    <li key={s} className="flex flex-1 items-center gap-2">
-                      <span
-                        className={`h-2 w-2 rounded-full ${reached ? "bg-primary" : "bg-muted"}`}
+                <div className="flex flex-col gap-3">
+                  {list.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-line-strong px-4 py-8 text-center text-sm text-ink-2">
+                      {q ? "Nada coincide con la búsqueda." : EMPTY_COLUMN[status]}
+                    </p>
+                  ) : (
+                    list.map((order) => (
+                      <OrderTicket
+                        key={order.id}
+                        order={order}
+                        now={now}
+                        fresh={freshIds.has(order.id)}
+                        onAdvance={advance}
+                        onSetStatus={setStatus}
                       />
-                      <span className={reached ? "text-foreground" : "text-muted-foreground"}>
-                        {ORDER_STATUS_LABEL[s]}
-                      </span>
-                      {i < 3 ? <span className="h-px flex-1 bg-border" /> : null}
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          </div>
-        ) : null}
-      </Panel>
+                    ))
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

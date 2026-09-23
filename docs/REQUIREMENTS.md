@@ -54,19 +54,19 @@
 
 | ID | Requerimiento | Estado |
 |---|---|---|
-| RF-28 | Tablero de pedidos en vivo | 🟡 frontend hecho, con datos de demostración — falta conectar a Neon y el sondeo en vivo |
-| RF-29 | Cambio de estado: Pendiente → Preparando → En camino → Entregado | 🟡 el flujo y los botones funcionan en el frontend; falta persistirlo |
+| RF-28 | Tablero de pedidos en vivo | ✅ tablero por columnas (escritorio) y por pestañas (celular), conectado a Neon con sondeo cada 5 s y aviso de pedido nuevo en todo el portal |
+| RF-29 | Cambio de estado: Pendiente → Preparando → En camino → Entregado | ✅ un toque, deslizar (celular) o arrastrar (escritorio), con "Deshacer"; se guarda en Neon vía `POST /api/orders` |
 | RF-30 | El cambio de estado encola un aviso en el outbox | ⬜ |
 | RF-31 | Barrido del outbox por cron, con reintentos y control de ventana | ⬜ |
-| RF-32 | Bandeja: lista de conversaciones, hilo y estado del asistente | 🟡 frontend hecho (lista + hilo + indicador de pausa/escalado), con datos de demostración |
-| RF-33 | Responder desde la bandeja pausa al asistente en ESA conversación | ⬜ (el frontend de esta vuelta es de solo lectura, sin cuadro de respuesta) |
-| RF-34 | Marcar resuelta reactiva al asistente en ESA conversación | ⬜ |
-| RF-35 | La bandeja muestra cuánto queda de la ventana de 24 h | 🟡 se muestra en el frontend; falta calcularlo con `windowRemaining()` sobre datos reales |
-| RF-36 | Con la ventana cerrada, el cuadro de texto se bloquea con el motivo | ⬜ |
+| RF-32 | Bandeja: lista de conversaciones, hilo y estado del asistente | 🟡 frontend completo (lista con "Te necesitan", hilo tipo chat, datos del cliente y sus pedidos), con datos de demostración |
+| RF-33 | Responder desde la bandeja pausa al asistente en ESA conversación | 🟡 frontend hecho ("Intervenir" y responder pausan el bot); falta `pauseBot`/`sendAgentMessage` en `portal-api.ts` → `POST /api/internal/send` |
+| RF-34 | Marcar resuelta reactiva al asistente en ESA conversación | 🟡 frontend hecho ("Devolver al bot"); falta `resumeBot` en `portal-api.ts` |
+| RF-35 | La bandeja muestra cuánto queda de la ventana de 24 h | 🟡 se calcula con `windowRemaining()` sobre `lastInboundAt`; falta que ese dato venga de Neon |
+| RF-36 | Con la ventana cerrada, el cuadro de texto se bloquea con el motivo | 🟡 frontend hecho; el bloqueo real lo hace `apps/bot` al enviar |
 | RF-37 | El comprobante se guarda siempre, valide o no | ⬜ |
 | RF-38 | Validación binaria: cuadra → validado; no cuadra → registrado y escalado | ⬜ |
 | RF-39 | Una referencia de transferencia no se acepta dos veces | ⬜ |
-| RF-40 | Resumen: pedidos, ticket promedio, productos más pedidos | 🟡 el Inicio muestra pedidos/ventas del día como franja de métricas (datos de demostración); falta ticket promedio y productos más pedidos |
+| RF-40 | Resumen: pedidos, ticket promedio, productos más pedidos | 🟡 el Inicio muestra ventas, pedidos, ticket promedio, cancelados, pedidos por hora y lo urgente; falta productos más pedidos |
 
 ## Despliegue · Fase 6
 

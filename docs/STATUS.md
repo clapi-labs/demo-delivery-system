@@ -33,7 +33,7 @@ tráfico real de Meta) y conectar el portal a Neon/al outbox.
 | 2 · Canal de WhatsApp | ✅ código, verificado contra Neon; el candado de rotación (ADR-11) también verificado; falta desplegar y coordinar la rotación para la prueba en vivo |
 | 3 · Motor del asistente | ✅ lo determinista y el asesor con modelo (OpenAI real); ⬜ la voz — falta `services/whatsapp/media.ts` + Whisper, y tráfico real de Meta para probarlo |
 | 4 · Menú público | ✅ catálogo, carrito, personalización, envío del pedido y el endpoint interno del bot que lo recibe |
-| 5 · Portal y bandeja | 🟡 frontend completo (Inicio, Pedidos, Conversaciones, Catálogo) con datos de demostración; falta conectarlo a Neon, al outbox y a `/api/internal/send` |
+| 5 · Portal y bandeja | 🟡 rediseñado (rama `portal-redesign`): pedidos conectados a Neon; Conversaciones y Menú con frontend completo sobre datos de demostración, enchufes listos en `apps/portal/src/lib/portal-api.ts`; falta el outbox y `/api/internal/send` |
 | 6 · Despliegue y video | ⬜ Ahora es el siguiente paso obligado: sin URL pública no hay a quién rotarle el webhook |
 
 ---
@@ -331,6 +331,75 @@ rutas renderizan con los datos de ejemplo.
 
 ---
 
+## Rediseño del portal (2026-09-23, rama `portal-redesign`)
+
+El usuario pidió rehacer el portal pensando en el celular, con esta
+prioridad: pedidos, conversaciones, diseño general/Inicio, menú. Pidió
+explícitamente **solo frontend** en conversaciones y menú ("la lógica real de
+conexión, pausa del bot, envío de mensajes, etc., la conectaré yo después") y
+trabajar en una rama aparte, sin tocar `main`.
+
+- **Diseño.** Fondo claro para usar de día; el riel lateral es el carbón del
+  menú público y el color de marca es su ámbar-brasa; la tipografía es la
+  misma familia del menú (Barlow, y Barlow Condensed para códigos, tiempos y
+  cifras). Cada estado del pedido tiene su color, siempre acompañado de su
+  texto. En el celular, barra de navegación abajo con contadores (pedidos
+  nuevos, chats que esperan a una persona); en escritorio, riel lateral.
+- **Estado compartido en el layout** (`components/providers/`): pedidos,
+  conversaciones y menú viven en providers, no en cada página. Así un pedido
+  nuevo avisa esté donde esté el restaurante, los contadores de la
+  navegación están siempre al día y los cambios en el menú sobreviven a
+  navegar.
+- **Pedidos** (`app/pedidos`, `components/orders/OrderTicket.tsx`). Escritorio:
+  tres columnas (Nuevos, En preparación, Enviados), los más viejos arriba.
+  Celular: los contadores de arriba son las pestañas. Avanzar un pedido es
+  **un solo gesto**: el botón de la tarjeta, deslizarla a la derecha (dedo) o
+  arrastrarla a otra columna (mouse). Cada cambio muestra "Deshacer" en vez
+  de pedir confirmación. Tocar la tarjeta despliega el detalle ahí mismo
+  (dirección con mapa, teléfono, "Ver chat", cambiar a cualquier estado,
+  cancelar con confirmación en línea). El cronómetro de cada pedido cambia de
+  color a los 5/10 min (nuevo), 20/30 (preparación) y 30/45 (enviado).
+  **Sigue conectado a Neon** por `GET/POST /api/orders`; la actualización es
+  optimista y un sondeo que llega a mitad de camino no la revierte.
+- **Conversaciones** (`components/inbox/`). Lista con los que "te necesitan"
+  arriba, hilo tipo chat (cliente / bot / tú / avisos del sistema), botones y
+  CTA del bot pintados como los vio el cliente. "Intervenir" pausa el bot en
+  ese chat y habilita el cuadro; "Devolver al bot" lo reactiva. Abrir un chat
+  NO lo pausa. Con la ventana de 24 h cerrada el cuadro se bloquea con el
+  motivo. Panel del cliente con su ventana y sus pedidos reales.
+  `?tel=` abre un chat directo (lo usa "Ver chat" desde un pedido).
+- **Menú** (`app/menu`, `components/menu/`; `/catalogo` redirige aquí).
+  Productos por categoría, **disponible/agotado con un interruptor en la
+  fila**, editor en hoja (foto, nombre, descripción, precio, categoría,
+  opciones de personalización), modo "Organizar" para reordenar productos y
+  categorías y ocultar categorías, y **promociones** (porcentaje, precio fijo
+  o 2x1; por categoría, producto o todo el menú; por días y horario).
+  El menú de demostración sale del mismo catálogo semilla que la base
+  (`@sistema/shared/db/seed-data`, export nuevo del paquete compartido).
+- **Inicio** (`components/dashboard/Dashboard.tsx`). Lo urgente arriba
+  (pedidos sin aceptar y cuánto lleva el más viejo, chats que esperan a una
+  persona, agotados), cifras de hoy (ventas, pedidos, ticket promedio,
+  cancelados), pedidos por hora, la cocina ahora y los últimos pedidos.
+- **`NEXT_PUBLIC_PORTAL_DEMO="true"`** carga pedidos de ejemplo en memoria
+  (y a los 25 s "entra" uno nuevo para ver el aviso). Sirve para grabar o
+  probar sin base; nunca en producción.
+
+**Dónde se conecta cada cosa:** todo lo que falta está en
+`apps/portal/src/lib/portal-api.ts`, marcado con `TODO(backend)` y con la
+regla que tiene que respetar (RN-05 para enviar, RN-02 para promociones).
+Las pantallas no llaman a `fetch` directo; al conectar, cambia el cuerpo de
+esas funciones y la carga inicial de `InboxProvider`/`MenuProvider`.
+**Las promociones no tienen tabla en el esquema** — la forma propuesta está
+en `apps/portal/src/lib/menu.ts` (`Promotion`), y el descuento tiene que
+calcularse en el servidor al crear el pedido, no en el navegador.
+
+**Verificado:** `tsc --noEmit`, `eslint` y `next build` del portal limpios;
+las cinco rutas responden 200 en `next dev` con el modo demostración. No se
+pudo revisar visualmente en el navegador desde la sesión (la extensión de
+Chrome no respondía).
+
+---
+
 ## Decisiones que conviene no reabrir
 
 Todas en `DECISIONS.md`. Las que más cuesta corregir después:
@@ -440,17 +509,13 @@ Todas en `DECISIONS.md`. Las que más cuesta corregir después:
 
 ## Notas para la próxima sesión
 
-- **El portal (Fase 5) tiene el frontend completo pero corre sobre
-  `apps/portal/src/lib/demo-data.ts`, no sobre Neon.** Para conectarlo:
-  reemplazar ese módulo por consultas reales (`getCatalog()` ya existe;
-  pedidos y conversaciones necesitan queries nuevas en
-  `packages/shared`/`apps/portal/src/db`, siguiendo el mismo patrón que
-  `apps/bot/src/db/queries/`), implementar el sondeo de 2 s que ya menciona
-  el README original de `api/orders/route.ts`, el outbox (RF-30/31) y
-  `POST /api/internal/send` para que "Responder" en la bandeja de verdad
-  pause al bot y le escriba al cliente (RF-33, RN-05). El diseño no debería
-  cambiar con eso — es la misma separación frontend/datos que ya se resolvió
-  al conectar el menú.
+- **Portal (rama `portal-redesign`):** los pedidos ya leen y escriben Neon;
+  conversaciones y menú corren sobre `apps/portal/src/lib/demo-data.ts`. Para
+  conectarlos, llenar las funciones `TODO(backend)` de
+  `apps/portal/src/lib/portal-api.ts` (`getCatalog()` ya existe; la bandeja
+  necesita queries nuevas siguiendo `apps/bot/src/db/queries/`), el outbox
+  (RF-30/31) y `POST /api/internal/send` para que responder desde la bandeja
+  salga por el bot (RF-33, RN-05). Las pantallas no deberían cambiar.
 - **Lo único que falta de la Fase 3 es la voz (RF-14).** Mismo patrón de
   enchufe que ya se usó para el asesor: falta `services/whatsapp/media.ts`
   (descarga en dos pasos: `GET /{media-id}` da una URL temporal, se descarga
