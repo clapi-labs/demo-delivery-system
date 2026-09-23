@@ -295,19 +295,22 @@ function toModelHistory(history: Message[]) {
  *  Se exporta porque `/api/internal/menu-order` también necesita entregar una
  *  respuesta sin pasar por `handleIncoming` (no hay un mensaje entrante). */
 export async function deliverReply(phone: string, reply: BotReply): Promise<SendResult> {
-  // La imagen va primero y en su propio mensaje (WhatsApp no la combina con
-  // un botón). Si falla, se sigue igual: una foto que no cargó no puede
-  // costarle el pedido al cliente — lo que importa es el menú de abajo.
+  // Con menú, la foto viaja DENTRO del mismo mensaje como encabezado: una
+  // sola notificación, con la foto arriba y el botón abajo, en vez de dos
+  // mensajes donde el cliente puede quedarse en la foto sin ver el botón.
+  if (reply.menu) {
+    return sendCta(phone, reply.text, reply.menu.url, reply.menu.label, reply.image?.url);
+  }
+
+  // Sin menú no hay dónde meter el encabezado, así que la foto va sola y
+  // antes. Si falla, se sigue igual: el texto es lo que no se puede perder.
   if (reply.image) {
     const imageResult = await sendImage(phone, reply.image.url);
     if (!imageResult.ok) {
-      console.warn("[orchestrator] no se pudo mandar la imagen de bienvenida:", imageResult);
+      console.warn("[orchestrator] no se pudo mandar la imagen:", imageResult);
     }
   }
 
-  if (reply.menu) {
-    return sendCta(phone, reply.text, reply.menu.url, reply.menu.label);
-  }
   if (reply.buttons && reply.buttons.length > 0) {
     return sendButtons(phone, reply.text, reply.buttons);
   }

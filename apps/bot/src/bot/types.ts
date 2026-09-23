@@ -6,11 +6,11 @@ export type BotReply = {
   /** Link al menú, cuando el turno lo amerita. */
   menu?: { url: string; label: string };
   /**
-   * Imagen que se manda ANTES del texto, en su propio mensaje.
+   * Foto que acompaña la respuesta.
    *
-   * Va aparte porque WhatsApp no deja combinar una imagen con un botón
-   * `cta_url` en el mismo mensaje: o es imagen con pie de foto, o es
-   * interactivo. La bienvenida quiere las dos cosas, así que son dos envíos.
+   * Si el turno además lleva `menu`, viaja como encabezado DENTRO de ese
+   * mismo mensaje (foto arriba, texto, botón abajo) — comprobado contra la
+   * API real. Si no hay menú, sale sola y antes del texto.
    */
   image?: { url: string };
   /** El turno escaló a una persona: la bandeja lo muestra destacado (Fase 5). */

@@ -125,10 +125,17 @@ async function main() {
   ok("RN-01: un código no se canjea dos veces", (await redeemOrder(draftOrder.id, phone)) === false);
 
   console.log("\n── Saludo: la bienvenida manda CTA con el menú ──");
+  process.env.WELCOME_IMAGE_URL = "https://ejemplo.test/bienvenida.jpg";
   await handleIncoming(incoming({ kind: "text", text: "hola" }));
-  // Sin WELCOME_IMAGE_URL no hay foto, así que sale un solo mensaje. Con la
-  // foto configurada serían dos (imagen + CTA), y eso se prueba aparte.
-  ok("mandó exactamente un mensaje", sent.length === 1);
+  // UN solo mensaje aunque haya foto: con menú, la imagen viaja como
+  // encabezado del mismo `cta_url`, no como un envío aparte.
+  ok("mandó exactamente un mensaje, con foto y todo", sent.length === 1);
+  ok(
+    "la foto va como encabezado DEL MISMO mensaje",
+    (sent[0].body.interactive as any)?.header?.type === "image" &&
+      (sent[0].body.interactive as any)?.header?.image?.link ===
+        "https://ejemplo.test/bienvenida.jpg",
+  );
   ok("es interactive/cta_url (el botón del menú)", sent[0].body.interactive === undefined ? false : (sent[0].body.interactive as any).type === "cta_url");
   ok(
     "el texto explica CÓMO se pide, no solo saluda",

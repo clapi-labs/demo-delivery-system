@@ -154,12 +154,24 @@ export async function sendImage(
   });
 }
 
-/** El botón que abre el menú, con el link firmado (ADR-05). */
+/**
+ * El botón que abre el menú, con el link firmado (ADR-05).
+ *
+ * `imageUrl` pone una foto de encabezado **en el mismo mensaje**: foto arriba,
+ * texto en el medio, botón abajo. Confirmado contra la API real — el header
+ * de tipo `image` sí lo acepta `cta_url`, aunque la documentación pública no
+ * lo diga en ninguna parte fácil de encontrar.
+ *
+ * Es mejor que mandar la foto aparte: son dos notificaciones en vez de una, y
+ * el cliente puede quedarse mirando la foto sin ver el botón que viene
+ * después.
+ */
 export async function sendCta(
   phone: string,
   text: string,
   url: string,
   label: string,
+  imageUrl?: string,
 ): Promise<SendResult> {
   if (!checkActive()) return { ok: false, reason: "bot_inactive" };
   if (!(await checkWindow(phone))) return { ok: false, reason: "window_closed" };
@@ -170,6 +182,7 @@ export async function sendCta(
     type: "interactive",
     interactive: {
       type: "cta_url",
+      ...(imageUrl ? { header: { type: "image", image: { link: imageUrl } } } : {}),
       body: { text },
       action: {
         name: "cta_url",
