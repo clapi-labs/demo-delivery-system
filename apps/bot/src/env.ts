@@ -25,6 +25,25 @@ function optional(key: string, fallback = ""): string {
   return process.env[key] ?? fallback;
 }
 
+/**
+ * Una URL de otra app, tolerante a cómo se haya escrito la variable.
+ *
+ * **Esto no es cosmético, costó una demo en vivo:** `MENU_URL` se configuró
+ * como `demo-delivery-system-menu.vercel.app`, sin `https://`. El bot armó el
+ * botón del menú con esa cadena, WhatsApp la recibió como URL relativa y el
+ * botón no abría nada — sin ningún error en ningún log, porque para el bot
+ * todo había salido bien.
+ *
+ * Quien llena esa variable copia un host desde el panel de Vercel, que lo
+ * muestra sin esquema. Exigir que se acuerde de anteponerlo es apostar a que
+ * nadie se equivoque nunca; normalizarlo acá cuesta tres líneas.
+ */
+function requiredUrl(key: string): string {
+  const value = required(key);
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  return withScheme.replace(/\/+$/, ""); // sin barra final: quien la use la agrega
+}
+
 export const env = {
   // --- Meta / WhatsApp Cloud API -----------------------------------------
   //
@@ -77,10 +96,12 @@ export const env = {
   // uno abierto es un endpoint público que escribe en nombre del restaurante.
   urls: {
     get menu() {
-      return required("MENU_URL");
+      return requiredUrl("MENU_URL");
     },
     get portal() {
-      return optional("PORTAL_URL");
+      const value = optional("PORTAL_URL");
+      if (!value) return "";
+      return (/^https?:\/\//i.test(value) ? value : `https://${value}`).replace(/\/+$/, "");
     },
   },
   get internalSecret() {

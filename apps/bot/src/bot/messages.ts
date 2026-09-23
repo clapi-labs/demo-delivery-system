@@ -23,9 +23,6 @@ export const MESSAGES = {
     `Para hacer tu domicilio, entra al menú, arma tu pedido y me lo envías desde ahí. ` +
     `Yo te confirmo por acá la dirección y el pago.`,
 
-  /** Saludo cuando ya hubo conversación antes: más corto, sin repetir el instructivo. */
-  greetingBack: () => `¡Hola de nuevo! 👋 Acá tienes el menú para armar tu pedido.`,
-
   menuLink: () =>
     `Acá está el menú 👇 Agrega lo que quieras y me lo envías desde ahí.`,
 

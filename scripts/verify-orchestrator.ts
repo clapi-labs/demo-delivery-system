@@ -135,21 +135,26 @@ async function main() {
     ((sent[0].body.interactive as any)?.body?.text ?? "").includes("menú"),
   );
 
+  // El link del botón tiene que ser una URL ABSOLUTA. Un `MENU_URL` sin
+  // `https://` producía `demo-...vercel.app/?t=...`, que WhatsApp recibe como
+  // relativa y el botón no abre nada — sin un solo error en los logs, porque
+  // para el bot el envío salió bien. Pasó en vivo; de ahí esta comprobación.
+  // `http://` se acepta porque en local `MENU_URL` es `http://localhost:3002`;
+  // lo que se está probando es que tenga ESQUEMA, no cuál.
+  const ctaUrl = (sent[0].body.interactive as any)?.action?.parameters?.url ?? "";
+  ok("el link del menú es absoluto (trae esquema http/https)", /^https?:\/\//.test(ctaUrl));
+  ok("y apunta al menú, no al propio bot", !ctaUrl.includes("-bot."));
+
   sent.length = 0;
   await handleIncoming(incoming({ kind: "text", text: "hola de nuevo" }));
-  // Un segundo saludo TAMBIÉN lleva el menú: es el turno donde el cliente
-  // dice "quiero empezar", y dejarlo sin link para no repetirse le cuesta el
-  // pedido. Lo que cambia es el tono (`greetingBack`), no el link — antes
-  // esto caía al asesor y salía texto plano sin menú, que es justo el
-  // problema que se vio en vivo.
+  // SIEMPRE la misma bienvenida, sin variantes de "ya te conozco": el cliente
+  // que saluda quiere empezar, y lo único que importa en ese turno es que
+  // tenga el instructivo y el botón enfrente.
   ok(
-    "el segundo saludo sigue llevando el menú (CTA), no texto pelado",
+    "un segundo saludo repite la MISMA bienvenida con el menú",
     sent[0]?.body.type === "interactive" &&
-      (sent[0].body.interactive as any)?.type === "cta_url",
-  );
-  ok(
-    "pero con el texto corto, sin repetir el instructivo completo",
-    !((sent[0].body.interactive as any)?.body?.text ?? "").includes("Bienvenido a"),
+      (sent[0].body.interactive as any)?.type === "cta_url" &&
+      ((sent[0].body.interactive as any)?.body?.text ?? "").includes("Bienvenido a"),
   );
 
   console.log("\n── Flujo del pedido: código → dirección → pago ──");

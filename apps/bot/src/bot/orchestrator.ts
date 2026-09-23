@@ -247,27 +247,16 @@ async function route(
     };
   }
 
-  // 10. Saludo: SIEMPRE lleva el menú, porque es justo el turno donde el
-  //     cliente está diciendo "quiero empezar". Lo que cambia entre la
-  //     primera vez y las siguientes es el tono, no el link:
+  // 10. Saludo: SIEMPRE la misma bienvenida, con la foto y el menú.
   //
-  //     - Primera vez  -> bienvenida completa, con la foto y el instructivo
-  //                       de cómo se pide (el cliente nuevo no lo sabe).
-  //     - Ya conocido  -> saludo corto, sin repetir el instructivo ni la foto.
-  //
-  //     "Primera vez" se mide por si YA se le mandó el menú alguna vez, no por
-  //     si el bot habló alguna vez: un aviso de "estamos cerrados" contestado
-  //     a las 10:59 no puede gastarle la bienvenida al cliente (pasó en vivo).
+  //     Sin variantes de "primera vez" vs "ya te conozco". Se intentó esa
+  //     distinción y se descartó: el cliente que saluda está diciendo "quiero
+  //     empezar", y en ese turno lo único que importa es que tenga enfrente
+  //     cómo se pide y el botón para hacerlo. Acordarse de si ya lo saludamos
+  //     agrega una rama que se puede equivocar —y se equivocó— sin mejorar en
+  //     nada lo que el cliente necesita en ese momento.
   const history = await getMessages(conversation.id);
   if (isGreeting(input.text)) {
-    const alreadyWelcomed = history.some(
-      (m) => m.role === "bot" && (m.meta as { menu?: unknown } | null)?.menu,
-    );
-
-    if (alreadyWelcomed) {
-      return { text: MESSAGES.greetingBack(), menu: menu() };
-    }
-
     return {
       text: MESSAGES.greeting(),
       menu: menu(),
