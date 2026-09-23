@@ -96,11 +96,17 @@ Tres reglas de Meta que atraviesan todo el diseño:
 
 1. **Un video.** El recorrido completo grabado. Es el camino normal.
 2. **Prueba puntual.** El número de WhatsApp es compartido con Qanelo, por
-   rotación manual (ADR-11) — no es un número de prueba propio con lista de
-   destinatarios. El control de acceso ahora es la rotación misma: mientras
-   no le toca el turno a este bot (`BOT_ACTIVE=false` y nginx apuntando a
-   Qanelo), nadie puede tocarlo. Se activa para la ventana de la demo y se
-   devuelve el turno al terminar.
+   rotación manual (ADR-11) — pero **sigue siendo el número de prueba
+   gratuito de Meta** (`verified_name: "Test Number"`, sin verificar,
+   confirmado contra la Graph API), no uno propio verificado. Eso significa
+   que el control de acceso tiene DOS capas, no una:
+   1. La rotación (`BOT_ACTIVE` + el interruptor de nginx): mientras no le
+      toca el turno a este bot, nadie puede tocarlo.
+   2. **La lista de hasta 5 destinatarios** del número de prueba, que se
+      administra en el panel de Meta de quien lo controla (Qanelo) — un
+      número que NO esté en esa lista no puede recibir respuesta del bot
+      aunque la rotación esté bien apuntada. Agregar a alguien a esa lista lo
+      coordina quien tiene acceso al panel, no este repo.
 
 ## 7. Qué NO hace, a propósito
 

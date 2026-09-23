@@ -261,3 +261,13 @@ Además: al recuperar el turno, este bot puede recibir un mensaje de alguien a
 mitad de una conversación con Qanelo, sin ningún contexto de ese lado — el
 asesor (`bot/advisor.ts`) ya está diseñado para no asumir nunca, así que este
 caso no exige código nuevo, solo tenerlo presente.
+
+**Corrección (verificado en vivo).** El número compartido sigue siendo el
+número de prueba gratuito de Meta, no uno propio verificado — se confirmó
+contra la Graph API (`verified_name: "Test Number"`,
+`code_verification_status: "NOT_VERIFIED"`). Eso quiere decir que la rotación
+de nginx NO reemplaza el límite de 5 destinatarios del número de prueba: lo
+complementa. Un número que no esté en esa lista (administrada en el panel de
+Meta de quien controla la app — Qanelo, no este repo) no recibe respuesta del
+bot aunque `BOT_ACTIVE=true` y nginx apunten acá. Para que un prospecto nuevo
+pruebe hace falta las dos cosas: la rotación Y estar en esa lista.
