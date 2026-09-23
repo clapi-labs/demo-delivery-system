@@ -7,8 +7,13 @@
  * constantes por las consultas reales, no rediseñar las pantallas.
  */
 
-export type OrderStatus = "pending" | "preparing" | "sent" | "delivered";
+/** Los mismos valores que `OrderStatus` en el esquema compartido —
+ *  `cancelled` incluido, porque un pedido cancelado existe en la base y el
+ *  tablero tiene que poder pintarlo sin reventar. */
+export type OrderStatus = "pending" | "preparing" | "sent" | "delivered" | "cancelled";
 
+/** El camino normal. `cancelled` queda fuera a propósito: es una salida, no
+ *  un paso — no se "avanza" hacia ella desde el botón grande. */
 export const ORDER_STATUS_FLOW: OrderStatus[] = ["pending", "preparing", "sent", "delivered"];
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
@@ -16,6 +21,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   preparing: "En preparación",
   sent: "Enviado",
   delivered: "Entregado",
+  cancelled: "Cancelado",
 };
 
 export const ORDER_STATUS_ACTION_LABEL: Record<OrderStatus, string> = {
@@ -23,6 +29,7 @@ export const ORDER_STATUS_ACTION_LABEL: Record<OrderStatus, string> = {
   preparing: "Marcar como enviado",
   sent: "Marcar como entregado",
   delivered: "Entregado",
+  cancelled: "Cancelado",
 };
 
 export function nextOrderStatus(status: OrderStatus): OrderStatus | null {
@@ -37,6 +44,19 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   transferencia: "Transferencia",
   datafono: "Datáfono",
 };
+
+/** El pago se confirma por chat DESPUÉS de que entra el pedido, así que un
+ *  pedido recién llegado legítimamente no tiene método todavía. */
+export function paymentLabel(method: string | null | undefined) {
+  if (!method) return "Sin confirmar";
+  return PAYMENT_METHOD_LABEL[method as PaymentMethod] ?? method;
+}
+
+/** "Hace 3 min" a partir de una fecha real de la base. */
+export function minutesSince(date: string | Date) {
+  const then = typeof date === "string" ? new Date(date) : date;
+  return Math.max(0, Math.round((Date.now() - then.getTime()) / 60000));
+}
 
 export type OrderItem = { name: string; quantity: number; unitPrice: number };
 

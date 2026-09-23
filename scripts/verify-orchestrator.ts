@@ -124,20 +124,32 @@ async function main() {
   ok("un pedido YA canjeado sí pasa el candado", assertMenuOrder(redeemedOrder));
   ok("RN-01: un código no se canjea dos veces", (await redeemOrder(draftOrder.id, phone)) === false);
 
-  console.log("\n── Saludo: primer contacto manda CTA con el menú ──");
+  console.log("\n── Saludo: la bienvenida manda CTA con el menú ──");
   await handleIncoming(incoming({ kind: "text", text: "hola" }));
+  // Sin WELCOME_IMAGE_URL no hay foto, así que sale un solo mensaje. Con la
+  // foto configurada serían dos (imagen + CTA), y eso se prueba aparte.
   ok("mandó exactamente un mensaje", sent.length === 1);
   ok("es interactive/cta_url (el botón del menú)", sent[0].body.interactive === undefined ? false : (sent[0].body.interactive as any).type === "cta_url");
+  ok(
+    "el texto explica CÓMO se pide, no solo saluda",
+    ((sent[0].body.interactive as any)?.body?.text ?? "").includes("menú"),
+  );
 
   sent.length = 0;
   await handleIncoming(incoming({ kind: "text", text: "hola de nuevo" }));
-  // No es primer contacto, así que NO entra por la ruta de saludo — cae al
-  // asesor de verdad (bot/advisor.ts), que acá está mockeado para que el
-  // modelo "elija" la herramienta `reply`. Esa rama no adjunta menú (solo
-  // `lookup_products` lo hace), así que el envío es texto plano.
+  // Un segundo saludo TAMBIÉN lleva el menú: es el turno donde el cliente
+  // dice "quiero empezar", y dejarlo sin link para no repetirse le cuesta el
+  // pedido. Lo que cambia es el tono (`greetingBack`), no el link — antes
+  // esto caía al asesor y salía texto plano sin menú, que es justo el
+  // problema que se vio en vivo.
   ok(
-    "no repite el saludo; cae al asesor, que responde en texto plano (rama 'reply')",
-    sent[0]?.body.type === "text" && (sent[0].body.text as any)?.body?.includes("mock de OpenAI"),
+    "el segundo saludo sigue llevando el menú (CTA), no texto pelado",
+    sent[0]?.body.type === "interactive" &&
+      (sent[0].body.interactive as any)?.type === "cta_url",
+  );
+  ok(
+    "pero con el texto corto, sin repetir el instructivo completo",
+    !((sent[0].body.interactive as any)?.body?.text ?? "").includes("Bienvenido a"),
   );
 
   console.log("\n── Flujo del pedido: código → dirección → pago ──");

@@ -127,6 +127,33 @@ export async function sendButtons(
   });
 }
 
+/**
+ * Imagen por URL pública.
+ *
+ * Meta descarga la imagen él mismo desde esa URL, así que tiene que ser
+ * pública y servir un `Content-Type` de imagen — no vale una ruta protegida
+ * ni una página HTML que "muestra" la foto.
+ *
+ * Se usa para la bienvenida. Si falla no se corta el turno: el texto y el
+ * botón del menú salen igual (ver `deliverReply`), porque una foto que no
+ * cargó no puede costarle el pedido al cliente.
+ */
+export async function sendImage(
+  phone: string,
+  imageUrl: string,
+  caption?: string,
+): Promise<SendResult> {
+  if (!checkActive()) return { ok: false, reason: "bot_inactive" };
+  if (!(await checkWindow(phone))) return { ok: false, reason: "window_closed" };
+
+  return post({
+    messaging_product: "whatsapp",
+    to: phone,
+    type: "image",
+    image: { link: imageUrl, ...(caption ? { caption } : {}) },
+  });
+}
+
 /** El botón que abre el menú, con el link firmado (ADR-05). */
 export async function sendCta(
   phone: string,

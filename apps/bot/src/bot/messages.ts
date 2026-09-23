@@ -11,9 +11,20 @@ import { BUSINESS, formatCOP } from "@sistema/shared";
 const b = BUSINESS;
 
 export const MESSAGES = {
+  /**
+   * Bienvenida del primer contacto.
+   *
+   * Dice explícitamente *cómo* se pide, no solo "hola": el cliente que llega
+   * por primera vez no sabe que el pedido se arma en el menú y se envía desde
+   * ahí, y esa es justo la mecánica que sostiene todo el sistema (ADR-02).
+   */
   greeting: () =>
-    `¡Hola! 👋 Bienvenido a *${b.name}*.\n\n` +
-    `Soy el asistente y te ayudo con tu pedido. Mira el menú, arma lo que quieras y me lo envías desde ahí.`,
+    `¡Bienvenido a *${b.name}*! 👋\n\n` +
+    `Para hacer tu domicilio, entra al menú, arma tu pedido y me lo envías desde ahí. ` +
+    `Yo te confirmo por acá la dirección y el pago.`,
+
+  /** Saludo cuando ya hubo conversación antes: más corto, sin repetir el instructivo. */
+  greetingBack: () => `¡Hola de nuevo! 👋 Acá tienes el menú para armar tu pedido.`,
 
   menuLink: () =>
     `Acá está el menú 👇 Agrega lo que quieras y me lo envías desde ahí.`,

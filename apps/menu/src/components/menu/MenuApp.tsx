@@ -320,7 +320,6 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
         subtotal={cart.subtotal}
         deliveryFee={business.deliveryFee}
         businessName={business.name}
-        whatsappNumber={business.whatsappNumber}
         token={token}
         onIncrement={(l) => cart.add(l.product.sku, l.optionIds, 1)}
         onDecrement={(l) => cart.removeOne(l.key)}

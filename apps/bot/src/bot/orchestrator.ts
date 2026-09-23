@@ -11,7 +11,13 @@ import {
 } from "@/db/queries/conversation";
 import { findOrderByCode } from "@/db/queries/orders";
 import { env } from "@/env";
-import { sendCta, sendButtons, sendText, type SendResult } from "@/services/whatsapp/client";
+import {
+  sendCta,
+  sendButtons,
+  sendImage,
+  sendText,
+  type SendResult,
+} from "@/services/whatsapp/client";
 import type { IncomingMessage } from "@/services/whatsapp/types";
 
 import { runAdvisor } from "./advisor";
@@ -241,13 +247,32 @@ async function route(
     };
   }
 
-  // 10. Primer contacto: saludo con el menú. Un saludo más adelante en la
-  //     conversación NO repite el link — ofrecerlo en cada mensaje es el
-  //     ruido que este diseño existe para evitar.
+  // 10. Saludo: SIEMPRE lleva el menú, porque es justo el turno donde el
+  //     cliente está diciendo "quiero empezar". Lo que cambia entre la
+  //     primera vez y las siguientes es el tono, no el link:
+  //
+  //     - Primera vez  -> bienvenida completa, con la foto y el instructivo
+  //                       de cómo se pide (el cliente nuevo no lo sabe).
+  //     - Ya conocido  -> saludo corto, sin repetir el instructivo ni la foto.
+  //
+  //     "Primera vez" se mide por si YA se le mandó el menú alguna vez, no por
+  //     si el bot habló alguna vez: un aviso de "estamos cerrados" contestado
+  //     a las 10:59 no puede gastarle la bienvenida al cliente (pasó en vivo).
   const history = await getMessages(conversation.id);
-  const isFirstContact = history.filter((m) => m.role === "bot").length === 0;
-  if (isGreeting(input.text) && isFirstContact) {
-    return { text: MESSAGES.greeting(), menu: menu() };
+  if (isGreeting(input.text)) {
+    const alreadyWelcomed = history.some(
+      (m) => m.role === "bot" && (m.meta as { menu?: unknown } | null)?.menu,
+    );
+
+    if (alreadyWelcomed) {
+      return { text: MESSAGES.greetingBack(), menu: menu() };
+    }
+
+    return {
+      text: MESSAGES.greeting(),
+      menu: menu(),
+      ...(env.welcomeImageUrl ? { image: { url: env.welcomeImageUrl } } : {}),
+    };
   }
 
   // 11. Todo lo demás: el asesor con el modelo (RF-13). `runAdvisor` degrada
@@ -281,6 +306,16 @@ function toModelHistory(history: Message[]) {
  *  Se exporta porque `/api/internal/menu-order` también necesita entregar una
  *  respuesta sin pasar por `handleIncoming` (no hay un mensaje entrante). */
 export async function deliverReply(phone: string, reply: BotReply): Promise<SendResult> {
+  // La imagen va primero y en su propio mensaje (WhatsApp no la combina con
+  // un botón). Si falla, se sigue igual: una foto que no cargó no puede
+  // costarle el pedido al cliente — lo que importa es el menú de abajo.
+  if (reply.image) {
+    const imageResult = await sendImage(phone, reply.image.url);
+    if (!imageResult.ok) {
+      console.warn("[orchestrator] no se pudo mandar la imagen de bienvenida:", imageResult);
+    }
+  }
+
   if (reply.menu) {
     return sendCta(phone, reply.text, reply.menu.url, reply.menu.label);
   }

@@ -92,6 +92,16 @@ export const env = {
     return required("MENU_TOKEN_SECRET");
   },
 
+  /**
+   * Foto de la bienvenida. Opcional a propósito: sin ella el saludo sale
+   * igual, solo sin imagen. Tiene que ser una URL PÚBLICA que sirva la
+   * imagen directamente (Meta la descarga él mismo), no una página que la
+   * muestre.
+   */
+  get welcomeImageUrl() {
+    return optional("WELCOME_IMAGE_URL");
+  },
+
   // --- Operación ----------------------------------------------------------
   get mediaDir() {
     return optional("MEDIA_DIR", "/tmp/media");

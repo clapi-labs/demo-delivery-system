@@ -7,11 +7,12 @@ import Image from "next/image";
 import { formatCOP, orderCodeMessage } from "@sistema/shared";
 
 import { categoryImage } from "@/lib/category-images";
+import { isMobileDevice, whatsappChatUrl } from "@/lib/whatsapp";
 
 import type { CartLine } from "./use-cart";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 
-type OrderResult = { code: string; delivered: boolean };
+type OrderResult = { code: string; delivered: boolean; whatsappNumber: string };
 
 type Props = {
   open: boolean;
@@ -20,7 +21,6 @@ type Props = {
   subtotal: number;
   deliveryFee: number;
   businessName: string;
-  whatsappNumber: string;
   token: string | null;
   onIncrement: (line: CartLine) => void;
   onDecrement: (line: CartLine) => void;
@@ -42,7 +42,6 @@ export function CartPanel({
   subtotal,
   deliveryFee,
   businessName,
-  whatsappNumber,
   token,
   onIncrement,
   onDecrement,
@@ -80,6 +79,16 @@ export function CartPanel({
       const data = (await response.json()) as OrderResult;
       setResult(data);
       onSent();
+
+      // El pedido YA salió y el bot ya contestó por WhatsApp: el siguiente
+      // paso del cliente es leer esa confirmación, así que en celular se le
+      // abre el chat solo. En computador no se redirige a nadie —abrir
+      // WhatsApp Web en una pestaña nueva provoca el "WhatsApp está abierto
+      // en otra ventana" si ya lo tenía abierto—, ahí el link queda como
+      // opción en la pantalla de confirmación.
+      if (data.delivered && data.whatsappNumber && isMobileDevice()) {
+        window.location.href = whatsappChatUrl(data.whatsappNumber);
+      }
     } catch {
       setError("No pudimos enviar el pedido. Revisa tu conexión e intenta de nuevo.");
     } finally {
@@ -123,11 +132,7 @@ export function CartPanel({
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {result ? (
-            <ResultView
-              result={result}
-              businessName={businessName}
-              whatsappNumber={whatsappNumber}
-            />
+            <ResultView result={result} businessName={businessName} />
           ) : lines.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">
               Tu carrito está vacío. Explora el menú y agrega algo rico.
@@ -230,49 +235,69 @@ export function CartPanel({
   );
 }
 
+/**
+ * La pantalla final del carrito.
+ *
+ * Tiene dos versiones, y la diferencia no es cosmética: es de quién es el
+ * siguiente paso.
+ *
+ * - `delivered` → el bot YA canjeó el pedido y contestó por WhatsApp. No
+ *   queda nada por hacer; el botón es una comodidad para ir a leerlo.
+ * - `!delivered` → el pedido está guardado, pero el bot todavía no sabe de
+ *   quién es y solo lo sabrá cuando llegue el mensaje. Acá el botón NO es
+ *   opcional, y el texto tiene que decirlo sin rodeos.
+ *
+ * Escribir "¡listo!" en el segundo caso sería mentirle al cliente: creería
+ * que su pedido va en camino cuando en realidad nadie lo ha visto.
+ */
 function ResultView({
   result,
   businessName,
-  whatsappNumber,
 }: {
   result: OrderResult;
   businessName: string;
-  whatsappNumber: string;
 }) {
+  const number = result.whatsappNumber;
+
   if (result.delivered) {
     return (
-      <div className="space-y-3 py-10 text-center">
-        <p className="font-display text-2xl">¡Listo!</p>
-        <p className="text-sm text-muted-foreground">
-          {businessName} ya te escribió por WhatsApp para confirmar tu pedido. Revisa el
-          chat.
+      <div className="space-y-4 py-8 text-center">
+        <p className="font-display text-3xl">¡Pedido enviado!</p>
+        <p className="text-sm tabular-nums text-muted-foreground">Código {result.code}</p>
+        <p className="mx-auto max-w-[34ch] text-sm leading-relaxed text-muted-foreground">
+          Ya le mandé tu pedido a {businessName} por WhatsApp. Abre tu chat para ver la
+          confirmación y darnos la dirección.
         </p>
+        {number ? (
+          <a
+            href={whatsappChatUrl(number)}
+            className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-semibold uppercase tracking-[0.12em] text-whatsapp-foreground transition-opacity hover:opacity-90"
+          >
+            <WhatsAppIcon className="h-5 w-5" />
+            Abrir WhatsApp
+          </a>
+        ) : null}
       </div>
     );
   }
 
   const message = orderCodeMessage(result.code);
-  const waLink = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
-    : null;
 
   return (
-    <div className="space-y-4 py-6 text-center">
-      <p className="font-display text-2xl">Un paso más</p>
-      <p className="text-sm text-muted-foreground">
-        Tu pedido quedó guardado con el código{" "}
-        <strong className="text-foreground">{result.code}</strong>. Para confirmarlo,
-        mándanos este mensaje por WhatsApp:
+    <div className="space-y-4 py-8 text-center">
+      <p className="font-display text-3xl">Falta un paso</p>
+      <p className="text-sm tabular-nums text-muted-foreground">Código {result.code}</p>
+      <p className="mx-auto max-w-[34ch] text-sm leading-relaxed text-muted-foreground">
+        Abre WhatsApp y <strong className="text-foreground">envía el mensaje</strong> que
+        te queda escrito. Tu pedido no llega hasta que lo mandes.
       </p>
-      {waLink ? (
+      {number ? (
         <a
-          href={waLink}
-          target="_blank"
-          rel="noreferrer"
+          href={whatsappChatUrl(number, message)}
           className="mx-auto flex h-12 w-full max-w-xs items-center justify-center gap-2 rounded-[8px] bg-whatsapp text-sm font-semibold uppercase tracking-[0.12em] text-whatsapp-foreground transition-opacity hover:opacity-90"
         >
           <WhatsAppIcon className="h-5 w-5" />
-          Enviar {message}
+          Abrir WhatsApp y enviar
         </a>
       ) : (
         <p className="font-display text-lg">{message}</p>

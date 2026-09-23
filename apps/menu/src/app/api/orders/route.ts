@@ -108,7 +108,14 @@ export async function POST(request: Request) {
   const payload = verifyMenuToken(body?.token ?? null, env.menuTokenSecret);
   const delivered = payload ? await notifyBot(code, body?.token ?? null) : false;
 
-  return NextResponse.json({ code, delivered }, { status: 201 });
+  // El número sale del servidor, no de una variable del navegador: así hay UN
+  // solo sitio donde vive cuál es el número del bot y no dos que se puedan
+  // desincronizar sin que nadie lo note hasta que un cliente le escriba al
+  // número equivocado.
+  return NextResponse.json(
+    { code, delivered, whatsappNumber: BUSINESS.whatsappNumber },
+    { status: 201 },
+  );
 }
 
 /** Nunca lanza: si el bot no responde, el pedido igual quedó guardado y el
