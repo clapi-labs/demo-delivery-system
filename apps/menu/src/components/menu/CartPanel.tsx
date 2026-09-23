@@ -62,16 +62,33 @@ export function CartPanel({
 }: Props) {
   const [step, setStep] = useState<Step>("cart");
   const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
+  const [street, setStreet] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [detail, setDetail] = useState("");
+  const [reference, setReference] = useState("");
   const [payment, setPayment] = useState<PaymentMethod | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OrderResult | null>(null);
 
   const total = subtotal + (subtotal > 0 ? deliveryFee : 0);
-  // La dirección es lo único obligatorio además del pago: sin ella no hay a
-  // dónde despachar. El nombre ayuda pero no bloquea.
-  const dataReady = address.trim().length > 7 && payment !== null;
+  // Calle y barrio son lo único obligatorio además del pago: sin eso no hay a
+  // dónde despachar. El nombre, el interior y la referencia ayudan pero no
+  // bloquean.
+  const dataReady = street.trim().length > 4 && neighborhood.trim().length > 1 && payment !== null;
+
+  // Un solo string es lo que espera la base (RN-02 no aplica acá, es solo
+  // texto libre) — los campos separados son para que el cliente escriba
+  // mejor, no para guardarse por separado.
+  const composedAddress = () =>
+    [
+      street.trim(),
+      neighborhood.trim() ? `barrio ${neighborhood.trim()}` : null,
+      detail.trim() || null,
+      reference.trim() ? `referencia: ${reference.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
   const sendOrder = async () => {
     setSending(true);
@@ -88,7 +105,7 @@ export function CartPanel({
           })),
           token,
           customerName: name.trim() || null,
-          address: address.trim(),
+          address: composedAddress(),
           paymentMethod: payment,
         }),
       });
@@ -127,7 +144,10 @@ export function CartPanel({
       setResult(null);
       setStep("cart");
       setName("");
-      setAddress("");
+      setStreet("");
+      setNeighborhood("");
+      setDetail("");
+      setReference("");
       setPayment(null);
     }
     setError(null);
@@ -181,24 +201,66 @@ export function CartPanel({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Tu nombre"
+                  name="name"
+                  autoComplete="name"
                   className="mt-2 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
                 />
               </label>
 
-              <label className="block">
-                <span className="eyebrow">Dirección de entrega</span>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  rows={3}
-                  placeholder="Calle 10 #20-30, apto 301, barrio Centro. Punto de referencia: al lado de la panadería."
-                  className="mt-2 w-full resize-none rounded-[8px] border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
-                />
-                <span className="mt-1.5 block text-xs text-muted-foreground">
-                  Incluye el barrio y algún punto de referencia — es lo que hace que
-                  llegue rápido.
-                </span>
-              </label>
+              <div className="space-y-3">
+                <p className="eyebrow">Dirección de entrega</p>
+
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">Calle o carrera y número</span>
+                  <input
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Calle 10 #20-30"
+                    name="street-address"
+                    autoComplete="street-address"
+                    className="mt-1.5 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">Barrio</span>
+                  <input
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                    placeholder="Centro"
+                    name="address-level2"
+                    autoComplete="address-level2"
+                    className="mt-1.5 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">
+                    Apto, casa o interior (opcional)
+                  </span>
+                  <input
+                    value={detail}
+                    onChange={(e) => setDetail(e.target.value)}
+                    placeholder="Apto 301, torre 2"
+                    name="address-line2"
+                    autoComplete="address-line2"
+                    className="mt-1.5 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">
+                    Punto de referencia (opcional)
+                  </span>
+                  <input
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    placeholder="Al lado de la panadería"
+                    name="address-reference"
+                    className="mt-1.5 h-12 w-full rounded-[8px] border border-border bg-input px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ember"
+                  />
+                </label>
+              </div>
 
               <div>
                 <p className="eyebrow mb-2">¿Cómo vas a pagar?</p>
