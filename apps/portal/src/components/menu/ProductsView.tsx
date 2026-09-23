@@ -1,45 +1,159 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
 
 import { formatCOP, normalize } from "@sistema/shared";
 
-import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronRightIcon, PlusIcon, SortIcon, TagIcon } from "@/components/icons";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  SortIcon,
+  TagIcon,
+} from "@/components/icons";
 import { useMenu } from "@/components/providers/MenuProvider";
-import { EmptyState, SearchField, Switch, buttonPrimary, buttonSecondary } from "@/components/ui";
-import { appliesTo, promoPrice, type MenuCategory, type MenuProduct } from "@/lib/menu";
+import { EmptyState, Pill, SearchField, Switch, buttonPrimary, buttonSecondary } from "@/components/ui";
+import { appliesTo, promoPrice, type MenuCategory, type MenuProduct, type Promotion } from "@/lib/menu";
 
 import { MenuSymbol } from "./MenuSymbol";
 import { CategoryEditor, ProductEditor, emptyProduct } from "./ProductEditor";
 
-function MoveButtons({ onUp, onDown, label }: { onUp?: () => void; onDown?: () => void; label: string }) {
+function MoveButtons({
+  onBack,
+  onForward,
+  label,
+  axis,
+}: {
+  onBack?: () => void;
+  onForward?: () => void;
+  label: string;
+  /** Vertical para categorías (una debajo de otra), horizontal para la cuadrícula. */
+  axis: "vertical" | "horizontal";
+}) {
+  const Back = axis === "vertical" ? ArrowUpIcon : ChevronLeftIcon;
+  const Forward = axis === "vertical" ? ArrowDownIcon : ChevronRightIcon;
+  const cls =
+    "ease-ui rounded-lg bg-surface p-2 text-ink-2 shadow-sm ring-1 ring-black/10 hover:text-ink disabled:opacity-30 disabled:shadow-none";
   return (
     <div className="flex shrink-0 gap-1">
-      <button
-        onClick={onUp}
-        disabled={!onUp}
-        aria-label={`Subir ${label}`}
-        className="rounded-md p-2 text-ink-2 ring-1 ring-line transition-colors hover:bg-sunken hover:text-ink disabled:opacity-30"
-      >
-        <ArrowUpIcon className="h-4 w-4" />
+      <button onClick={onBack} disabled={!onBack} aria-label={`Mover ${label} antes`} className={cls}>
+        <Back className="h-4 w-4" />
       </button>
-      <button
-        onClick={onDown}
-        disabled={!onDown}
-        aria-label={`Bajar ${label}`}
-        className="rounded-md p-2 text-ink-2 ring-1 ring-line transition-colors hover:bg-sunken hover:text-ink disabled:opacity-30"
-      >
-        <ArrowDownIcon className="h-4 w-4" />
+      <button onClick={onForward} disabled={!onForward} aria-label={`Mover ${label} después`} className={cls}>
+        <Forward className="h-4 w-4" />
       </button>
     </div>
   );
 }
 
+function ProductCard({
+  product,
+  category,
+  promo,
+  organizing,
+  onEdit,
+  onToggle,
+  onBack,
+  onForward,
+}: {
+  product: MenuProduct;
+  category: MenuCategory;
+  promo: Promotion | undefined;
+  organizing: boolean;
+  onEdit: () => void;
+  onToggle: () => void;
+  onBack?: () => void;
+  onForward?: () => void;
+}) {
+  const discounted = promo ? promoPrice(promo, product.price) : null;
+  const soldOut = !product.available;
+
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+      className="card ease-ui flex flex-col overflow-hidden hover:shadow-md"
+    >
+      <button
+        onClick={onEdit}
+        disabled={organizing}
+        aria-label={`Editar ${product.name}`}
+        className="group relative flex aspect-[16/10] items-center justify-center overflow-hidden bg-sunken"
+      >
+        {product.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- miniatura; puede ser una vista previa local
+          <img
+            src={product.imageUrl}
+            alt=""
+            className={`ease-ui h-full w-full object-cover group-hover:scale-[1.03] ${soldOut ? "grayscale" : ""}`}
+          />
+        ) : (
+          <MenuSymbol
+            name={category.symbol}
+            className={`ease-ui h-10 w-10 group-hover:scale-110 ${soldOut ? "text-idle" : "text-ink-3"}`}
+          />
+        )}
+        <span className="absolute left-2 top-2 flex flex-wrap gap-1">
+          {promo ? (
+            <Pill tone="brand" className="shadow-sm">
+              <TagIcon className="h-3 w-3" />
+              {promo.kind === "2x1" ? "2x1" : promo.kind === "percent" ? `−${promo.value}%` : "Oferta"}
+            </Pill>
+          ) : null}
+        </span>
+        {soldOut ? (
+          <span className="absolute right-2 top-2">
+            <Pill tone="idle" className="shadow-sm ring-1 ring-black/5">
+              Agotado
+            </Pill>
+          </span>
+        ) : null}
+      </button>
+
+      <button onClick={onEdit} disabled={organizing} className="flex flex-1 flex-col p-3.5 text-left">
+        <span className={`line-clamp-1 text-sm font-semibold tracking-title ${soldOut ? "text-ink-2" : ""}`}>
+          {product.name}
+        </span>
+        <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-ink-3">{product.description}</span>
+        <span className="mt-auto flex items-baseline gap-1.5 pt-2.5">
+          <span className="font-semibold tabular-nums">{formatCOP(discounted ?? product.price)}</span>
+          {discounted !== null && discounted !== product.price ? (
+            <span className="text-xs tabular-nums text-ink-3 line-through">{formatCOP(product.price)}</span>
+          ) : null}
+        </span>
+      </button>
+
+      <div className="flex items-center justify-between gap-2 border-t border-line px-3.5 py-2.5">
+        {organizing ? (
+          <>
+            <span className="text-xs text-ink-3">Orden</span>
+            <MoveButtons axis="horizontal" label={product.name} onBack={onBack} onForward={onForward} />
+          </>
+        ) : (
+          <>
+            <span className={`text-xs font-medium ${soldOut ? "text-idle-ink" : "text-ok-ink"}`}>
+              {soldOut ? "Agotado" : "Disponible"}
+            </span>
+            <Switch checked={product.available} onChange={onToggle} label={`${product.name} disponible`} size="sm" />
+          </>
+        )}
+      </div>
+    </motion.li>
+  );
+}
+
 /**
- * Los productos, agrupados como los ve el cliente. Lo más frecuente —
- * marcar algo como agotado— es un interruptor en la misma fila, sin abrir
- * nada. Editar es tocar la fila. Reordenar vive en un modo aparte para que
- * no estorbe el resto del tiempo.
+ * Los productos en cuadrícula, agrupados como los ve el cliente. Lo más
+ * frecuente —marcar algo como agotado— es un interruptor en la misma tarjeta,
+ * sin abrir nada. Editar es tocar la tarjeta. Reordenar vive en un modo aparte
+ * para que no estorbe el resto del tiempo.
  */
 export function ProductsView() {
   const { categories, products, promotions, toggleAvailable, moveProduct, moveCategory } = useMenu();
@@ -72,16 +186,11 @@ export function ProductsView() {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          placeholder="Buscar producto"
-          className="min-w-0 flex-1 sm:max-w-xs"
-        />
+        <SearchField value={query} onChange={setQuery} placeholder="Buscar producto" className="min-w-0 flex-1 sm:max-w-xs" />
         <button
           onClick={() => setOrganizing((v) => !v)}
           aria-pressed={organizing}
-          className={organizing ? `${buttonPrimary} bg-st-done` : buttonSecondary}
+          className={organizing ? `${buttonPrimary} bg-ok hover:bg-ok` : buttonSecondary}
         >
           {organizing ? <CheckIcon className="h-4 w-4" /> : <SortIcon className="h-4 w-4" />}
           {organizing ? "Listo" : "Organizar"}
@@ -95,24 +204,25 @@ export function ProductsView() {
         </button>
       </div>
 
-      <p className="mt-3 text-sm text-ink-2">
-        {products.length} productos
-        {soldOut ? `, ${soldOut} ${soldOut === 1 ? "agotado" : "agotados"}` : ""}
-        {activePromos.length
-          ? `, ${activePromos.length} ${activePromos.length === 1 ? "promoción activa" : "promociones activas"}`
-          : ""}
-        .
-      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <Pill tone="ok">{products.length - soldOut} disponibles</Pill>
+        {soldOut ? <Pill tone="idle">{soldOut} agotados</Pill> : null}
+        {activePromos.length ? (
+          <Pill tone="brand">
+            {activePromos.length} {activePromos.length === 1 ? "promoción activa" : "promociones activas"}
+          </Pill>
+        ) : null}
+      </div>
 
-      <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+      <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
         {[{ id: null, name: "Todo", symbol: null } as const, ...categories].map((c) => {
           const active = categoryFilter === c.id;
           return (
             <button
               key={c.id ?? "all"}
               onClick={() => setCategoryFilter(c.id)}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                active ? "bg-ink text-surface" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"
+              className={`ease-ui inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium shadow-sm ${
+                active ? "bg-ink text-white" : "bg-surface text-ink-2 ring-1 ring-black/5 hover:text-ink"
               }`}
             >
               {c.symbol ? <MenuSymbol name={c.symbol} className="h-4 w-4" /> : null}
@@ -122,13 +232,22 @@ export function ProductsView() {
         })}
       </div>
 
-      {organizing ? (
-        <p className="mt-4 rounded-lg bg-st-done-soft px-4 py-2.5 text-sm text-st-done-ink">
-          Usa las flechas para cambiar el orden. Así aparece en el menú del cliente.
-        </p>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {organizing ? (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <span className="mt-4 block rounded-xl bg-ok-soft px-4 py-2.5 text-sm text-ok-ink">
+              Usa las flechas para cambiar el orden. Así aparece en el menú del cliente.
+            </span>
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
 
-      <div className="mt-5 space-y-6">
+      <div className="mt-6 space-y-8">
         {sections.length === 0 ? (
           <EmptyState title="No hay productos que coincidan">Prueba con otra palabra o categoría.</EmptyState>
         ) : null}
@@ -136,131 +255,68 @@ export function ProductsView() {
         {sections.map(({ category, items }) => {
           const catIndex = categories.indexOf(category);
           return (
-            <section key={category.id} aria-labelledby={`cat-${category.id}`}>
-              <header className="mb-2 flex items-center gap-3 px-1">
-                <h2 id={`cat-${category.id}`} className="flex items-center gap-2 font-display text-xl font-semibold">
-                  <MenuSymbol name={category.symbol} className="h-5 w-5 text-ink-2" />
+            <motion.section layout key={category.id} aria-labelledby={`cat-${category.id}`}>
+              <header className="mb-3 flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface text-ink-2 shadow-sm ring-1 ring-black/5">
+                  <MenuSymbol name={category.symbol} className="h-4 w-4" />
+                </span>
+                <h2 id={`cat-${category.id}`} className="font-semibold tracking-title">
                   {category.name}
                 </h2>
-                <span className="text-sm text-ink-3 tabular-nums">{items.length}</span>
-                {!category.active ? (
-                  <span className="rounded-full bg-st-off-soft px-2 py-0.5 text-xs font-semibold text-st-off-ink">
-                    Oculta en el menú
-                  </span>
-                ) : null}
+                <span className="text-sm tabular-nums text-ink-3">{items.length}</span>
+                {!category.active ? <Pill tone="idle">Oculta en el menú</Pill> : null}
                 <span className="flex-1" />
                 {organizing ? (
                   <>
                     <button
                       onClick={() => setEditingCategory(category)}
-                      className="rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken hover:text-ink"
+                      className="ease-ui rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-2 hover:bg-surface hover:text-ink"
                     >
                       Editar
                     </button>
                     {categoryFilter === null ? (
                       <MoveButtons
+                        axis="vertical"
                         label={category.name}
-                        onUp={catIndex > 0 ? () => moveCategory(category.id, -1) : undefined}
-                        onDown={catIndex < categories.length - 1 ? () => moveCategory(category.id, 1) : undefined}
+                        onBack={catIndex > 0 ? () => moveCategory(category.id, -1) : undefined}
+                        onForward={catIndex < categories.length - 1 ? () => moveCategory(category.id, 1) : undefined}
                       />
                     ) : null}
                   </>
                 ) : null}
               </header>
 
-              <ul className="divide-y divide-line overflow-hidden rounded-lg bg-surface ring-1 ring-line">
-                {items.length === 0 ? (
-                  <li className="px-4 py-6 text-center text-sm text-ink-2">Esta categoría todavía no tiene productos.</li>
-                ) : null}
-                {items.map((product, i) => {
-                  const promo = activePromos.find((p) => appliesTo(p, product));
-                  const discounted = promo ? promoPrice(promo, product.price) : null;
-                  return (
-                    <li
-                      key={product.id}
-                      className={`flex items-center gap-3 pl-3 pr-3 sm:pr-4 ${product.available ? "" : "bg-sunken/50"}`}
-                    >
-                      <button
-                        onClick={() => !organizing && setEditing(product)}
-                        disabled={organizing}
-                        className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left"
-                      >
-                        <span
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sunken ${
-                            product.available ? "text-ink-2" : "text-ink-3 grayscale"
-                          }`}
-                        >
-                          {product.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- miniatura; puede ser una vista previa local
-                            <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <MenuSymbol name={category.symbol} className="h-6 w-6" />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2">
-                            <span className={`truncate font-medium ${product.available ? "" : "text-ink-2"}`}>
-                              {product.name}
-                            </span>
-                            {promo ? (
-                              <span
-                                title={promo.name}
-                                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-ink"
-                              >
-                                <TagIcon className="h-3 w-3" />
-                                {promo.kind === "2x1" ? "2x1" : promo.kind === "percent" ? `−${promo.value}%` : "Oferta"}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="mt-0.5 block truncate text-sm text-ink-2">{product.description}</span>
-                        </span>
-                        <span className="shrink-0 text-right">
-                          <span className="block font-display text-lg font-semibold leading-none tabular-nums">
-                            {formatCOP(discounted ?? product.price)}
-                          </span>
-                          {discounted !== null && discounted !== product.price ? (
-                            <span className="mt-0.5 block text-xs text-ink-3 line-through tabular-nums">
-                              {formatCOP(product.price)}
-                            </span>
-                          ) : null}
-                        </span>
-                        {!organizing ? <ChevronRightIcon className="hidden h-4 w-4 shrink-0 text-ink-3 sm:block" /> : null}
-                      </button>
-
-                      {organizing ? (
-                        <MoveButtons
-                          label={product.name}
-                          onUp={i > 0 ? () => moveProduct(product.id, -1) : undefined}
-                          onDown={i < items.length - 1 ? () => moveProduct(product.id, 1) : undefined}
-                        />
-                      ) : (
-                        <div className="flex shrink-0 items-center gap-2.5 border-l border-line py-2 pl-3">
-                          <span
-                            className={`hidden w-[4.5rem] text-right text-xs font-semibold sm:block ${
-                              product.available ? "text-st-done-ink" : "text-ink-3"
-                            }`}
-                          >
-                            {product.available ? "Disponible" : "Agotado"}
-                          </span>
-                          <Switch
-                            checked={product.available}
-                            onChange={() => toggleAvailable(product.id)}
-                            label={`${product.name} disponible`}
-                          />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+              {items.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-line-strong px-4 py-6 text-center text-sm text-ink-3">
+                  Esta categoría todavía no tiene productos.
+                </p>
+              ) : (
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                  <AnimatePresence initial={false} mode="popLayout">
+                    {items.map((product, i) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        category={category}
+                        promo={activePromos.find((p) => appliesTo(p, product))}
+                        organizing={organizing}
+                        onEdit={() => setEditing(product)}
+                        onToggle={() => toggleAvailable(product.id)}
+                        onBack={i > 0 ? () => moveProduct(product.id, -1) : undefined}
+                        onForward={i < items.length - 1 ? () => moveProduct(product.id, 1) : undefined}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              )}
+            </motion.section>
           );
         })}
 
         {organizing ? (
           <button
             onClick={() => setEditingCategory({ id: 0, name: "", symbol: "plate", active: true })}
-            className={`${buttonSecondary} w-full border-dashed`}
+            className={`${buttonSecondary} w-full border border-dashed border-line-strong shadow-none ring-0`}
           >
             <PlusIcon className="h-4 w-4" />
             Nueva categoría
@@ -270,13 +326,16 @@ export function ProductsView() {
 
       {/* En el celular, agregar va en un botón flotante al alcance del pulgar. */}
       {!organizing ? (
-        <button
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileTap={{ scale: 0.92 }}
           onClick={() => setEditing(emptyProduct(categoryFilter ?? categories[0]?.id ?? 0))}
           aria-label="Agregar producto"
-          className="fixed bottom-tabbar right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-surface shadow-lg shadow-black/20 sm:hidden"
+          className="fixed bottom-tabbar right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-lg shadow-brand/30 sm:hidden"
         >
           <PlusIcon className="h-6 w-6" />
-        </button>
+        </motion.button>
       ) : null}
 
       <ProductEditor product={editing} categories={categories} onClose={() => setEditing(null)} />

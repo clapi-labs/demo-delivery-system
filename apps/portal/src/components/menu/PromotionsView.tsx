@@ -154,7 +154,7 @@ function PromotionEditor({ promotion, onClose }: { promotion: Promotion | null; 
                 value={draft.value || ""}
                 onChange={(e) => set({ value: Math.min(99, Number(e.target.value.replace(/\D/g, "")) || 0) })}
                 aria-label="Porcentaje de descuento"
-                className={`${inputClass} w-24 text-center font-display text-xl font-semibold`}
+                className={`${inputClass} w-24 text-center text-lg font-semibold`}
               />
               <span className="text-sm text-ink-2">% menos sobre el precio normal</span>
             </div>
@@ -181,7 +181,7 @@ function PromotionEditor({ promotion, onClose }: { promotion: Promotion | null; 
             className="mt-1.5"
           />
           {draft.scope.type !== "all" ? (
-            <div className="mt-3 max-h-56 overflow-y-auto rounded-lg ring-1 ring-line">
+            <div className="mt-3 max-h-56 overflow-y-auto rounded-xl ring-1 ring-black/10">
               {(draft.scope.type === "category" ? categories : products).map((item) => (
                 <label
                   key={item.id}
@@ -219,8 +219,8 @@ function PromotionEditor({ promotion, onClose }: { promotion: Promotion | null; 
                   key={d}
                   onClick={() => set({ days: on ? draft.days.filter((x) => x !== d) : [...draft.days, d] })}
                   aria-pressed={on}
-                  className={`h-10 flex-1 rounded-lg text-sm font-semibold transition-colors ${
-                    on ? "bg-ink text-surface" : "bg-sunken text-ink-2 hover:text-ink"
+                  className={`ease-ui h-10 flex-1 rounded-full text-sm font-semibold ${
+                    on ? "bg-ink text-white" : "bg-sunken text-ink-2 hover:text-ink"
                   }`}
                 >
                   {DAY_LETTERS[d]}
@@ -260,7 +260,7 @@ function PromotionEditor({ promotion, onClose }: { promotion: Promotion | null; 
         </div>
 
         {example ? (
-          <div className="rounded-lg bg-brand-soft px-4 py-3 text-sm">
+          <div className="rounded-xl bg-brand-soft px-4 py-3 text-sm">
             <p className="font-medium">Así lo ve el cliente</p>
             <p className="mt-1 text-ink-2">
               {example.name}:{" "}
@@ -307,11 +307,11 @@ export function PromotionsView() {
           {promotions.map((promo) => (
             <li
               key={promo.id}
-              className={`flex items-stretch overflow-hidden rounded-lg bg-surface ring-1 ring-line ${promo.active ? "" : "opacity-70"}`}
+              className={`card ease-ui flex items-stretch overflow-hidden hover:shadow-md ${promo.active ? "" : "opacity-70"}`}
             >
               <button onClick={() => setEditing(promo)} className="flex min-w-0 flex-1 items-start gap-3 p-4 text-left">
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
                     promo.active ? "bg-brand-soft text-brand-ink" : "bg-sunken text-ink-3"
                   }`}
                 >
@@ -319,7 +319,7 @@ export function PromotionsView() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{promo.name}</span>
-                  <span className="mt-0.5 block font-display text-lg font-semibold leading-tight text-brand-ink">
+                  <span className="mt-0.5 block font-semibold tracking-title text-brand-ink">
                     {promoValueLabel(promo)}
                   </span>
                   <span className="mt-1 block truncate text-sm text-ink-2">

@@ -18,7 +18,7 @@ export default function MenuPage() {
   const [tab, setTab] = useState<"products" | "promotions">("products");
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-24 pt-5 sm:px-6 sm:pb-10 lg:px-8 lg:pt-8">
+    <div className="mx-auto max-w-6xl px-4 pb-24 pt-5 sm:px-6 sm:pb-10 lg:px-8 lg:pt-8">
       <PageHeader title="Menú" description="Lo que ven tus clientes cuando abren el link del menú." />
 
       <Segmented

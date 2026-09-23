@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 
 import { CloseIcon } from "@/components/icons";
@@ -53,36 +54,43 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-tabbar z-[60] flex flex-col items-center gap-2 px-4 lg:bottom-6"
       >
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            role="status"
-            className="animate-toast pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-lg bg-ink py-2.5 pl-4 pr-2 text-sm text-rail-fg shadow-lg shadow-black/20"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{t.message}</p>
-              {t.description ? <p className="truncate text-rail-muted">{t.description}</p> : null}
-            </div>
-            {t.action ? (
-              <button
-                onClick={() => {
-                  t.action?.onClick();
-                  dismiss(t.id);
-                }}
-                className="shrink-0 rounded-md px-3 py-2 font-semibold text-st-prep transition-colors hover:bg-rail-active"
-              >
-                {t.action.label}
-              </button>
-            ) : null}
-            <button
-              onClick={() => dismiss(t.id)}
-              aria-label="Cerrar aviso"
-              className="shrink-0 rounded-md p-2 text-rail-muted transition-colors hover:bg-rail-active hover:text-rail-fg"
+        <AnimatePresence initial={false}>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              role="status"
+              layout
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96, transition: { duration: 0.15 } }}
+              transition={{ type: "spring", stiffness: 500, damping: 36 }}
+              className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-xl bg-zinc-900 py-2.5 pl-4 pr-2 text-sm text-zinc-50 shadow-lg shadow-black/15 ring-1 ring-white/10"
             >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{t.message}</p>
+                {t.description ? <p className="truncate text-zinc-400">{t.description}</p> : null}
+              </div>
+              {t.action ? (
+                <button
+                  onClick={() => {
+                    t.action?.onClick();
+                    dismiss(t.id);
+                  }}
+                  className="ease-ui shrink-0 rounded-lg px-3 py-2 font-semibold text-brand hover:bg-white/10"
+                >
+                  {t.action.label}
+                </button>
+              ) : null}
+              <button
+                onClick={() => dismiss(t.id)}
+                aria-label="Cerrar aviso"
+                className="ease-ui shrink-0 rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-zinc-50"
+              >
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );

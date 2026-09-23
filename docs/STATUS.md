@@ -339,12 +339,21 @@ explícitamente **solo frontend** en conversaciones y menú ("la lógica real de
 conexión, pausa del bot, envío de mensajes, etc., la conectaré yo después") y
 trabajar en una rama aparte, sin tocar `main`.
 
-- **Diseño.** Fondo claro para usar de día; el riel lateral es el carbón del
-  menú público y el color de marca es su ámbar-brasa; la tipografía es la
-  misma familia del menú (Barlow, y Barlow Condensed para códigos, tiempos y
-  cifras). Cada estado del pedido tiene su color, siempre acompañado de su
-  texto. En el celular, barra de navegación abajo con contadores (pedidos
-  nuevos, chats que esperan a una persona); en escritorio, riel lateral.
+- **Diseño** (segunda vuelta, sobre un brief de UI/UX del usuario). Una sola
+  tipografía, Geist, con títulos a -0.02em (se quitó la condensada). Neutros
+  zinc: riel zinc-900, contenido zinc-100, tarjetas blancas con sombra corta
+  y anillo de 1px (`card` en `globals.css`), `rounded-xl` en tarjetas y
+  `rounded-full` en pastillas. Acento naranja de marca `hsl(28 91% 54%)`.
+  Colores semánticos con un solo significado: rojo = urgente (pedido sin
+  aceptar hace 10+ min), ámbar = esperando (cliente que pide una persona),
+  verde = activo/entregado, gris = inactivo/agotado; siempre con texto al
+  lado. Íconos de **Lucide** (`components/icons.tsx` los envuelve) y
+  animaciones con **Motion** (sucesor de Framer Motion): pestañas con
+  indicador deslizante, tarjetas que entran y salen, hoja con resorte,
+  avisos. Carga con skeletons, no con spinners. Sin emojis: las categorías
+  del menú usan símbolos (`components/menu/MenuSymbol.tsx`). En el celular,
+  barra de navegación abajo con contadores; en escritorio, riel lateral con
+  un widget plegable del asistente.
 - **Estado compartido en el layout** (`components/providers/`): pedidos,
   conversaciones y menú viven en providers, no en cada página. Así un pedido
   nuevo avisa esté donde esté el restaurante, los contadores de la
@@ -352,7 +361,9 @@ trabajar en una rama aparte, sin tocar `main`.
   navegar.
 - **Pedidos** (`app/pedidos`, `components/orders/OrderTicket.tsx`). Escritorio:
   tres columnas (Nuevos, En preparación, Enviados), los más viejos arriba.
-  Celular: los contadores de arriba son las pestañas. Avanzar un pedido es
+  Arriba, pestañas con contador: Todos, Nuevos, En preparación, Enviados y
+  Entregados (con los cancelados aparte). En el celular "Todos" es una sola
+  lista. `?estado=` abre una pestaña y `?pedido=CODIGO` abre ese pedido. Avanzar un pedido es
   **un solo gesto**: el botón de la tarjeta, deslizarla a la derecha (dedo) o
   arrastrarla a otra columna (mouse). Cada cambio muestra "Deshacer" en vez
   de pedir confirmación. Tocar la tarjeta despliega el detalle ahí mismo
@@ -376,7 +387,10 @@ trabajar en una rama aparte, sin tocar `main`.
   o 2x1; por categoría, producto o todo el menú; por días y horario).
   El menú de demostración sale del mismo catálogo semilla que la base
   (`@sistema/shared/db/seed-data`, export nuevo del paquete compartido).
-- **Inicio** (`components/dashboard/Dashboard.tsx`). Lo urgente arriba
+- **Inicio** (`components/dashboard/Dashboard.tsx`). Métricas con tendencia
+  contra ayer a la misma hora, gráfico con detalle al pasar el cursor (pedidos
+  y ventas de la hora), cocina en micro-tarjetas y acciones rápidas por fila
+  (Aceptar, Ver detalle). Lo urgente arriba
   (pedidos sin aceptar y cuánto lleva el más viejo, chats que esperan a una
   persona, agotados), cifras de hoy (ventas, pedidos, ticket promedio,
   cancelados), pedidos por hora, la cocina ahora y los últimos pedidos.

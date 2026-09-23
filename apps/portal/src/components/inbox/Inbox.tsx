@@ -1,13 +1,14 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { normalize } from "@sistema/shared";
 
-import { ChatIcon } from "@/components/icons";
+import { ChatIcon, WebIcon, WhatsappIcon } from "@/components/icons";
 import { useInbox } from "@/components/providers/InboxProvider";
 import { SearchField, Segmented } from "@/components/ui";
-import { conversationName, needsAttention, type InboxConversation } from "@/lib/inbox";
+import { CHANNEL_LABEL, conversationName, needsAttention, type InboxConversation } from "@/lib/inbox";
 import { elapsedLabel, minutesBetween } from "@/lib/orders";
 import { useMedia } from "@/lib/use-media";
 import { useNow } from "@/lib/use-now";
@@ -73,7 +74,7 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
       >
         <div className="space-y-3 px-4 pb-3 pt-5 lg:pt-8">
           <div>
-            <h1 className="font-display text-[2rem] font-semibold leading-none tracking-tight">Conversaciones</h1>
+            <h1 className="text-2xl font-semibold tracking-title sm:text-[1.75rem]">Conversaciones</h1>
             <p className="mt-1.5 text-sm text-ink-2">
               {attentionCount > 0
                 ? `${attentionCount} ${attentionCount === 1 ? "cliente espera" : "clientes esperan"} a una persona.`
@@ -86,7 +87,7 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
             onChange={setFilter}
             options={[
               { value: "all", label: "Todas" },
-              { value: "attention", label: "Te necesitan", count: attentionCount },
+              { value: "attention", label: "Te necesitan", count: attentionCount, countTone: "warn" },
               { value: "human", label: "Tú", count: humanCount },
             ]}
           />
@@ -102,14 +103,15 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
               const active = c.id === selected?.id;
               const attention = needsAttention(c);
               return (
-                <li key={c.id}>
+                <motion.li key={c.id} layout transition={{ type: "spring", stiffness: 500, damping: 40 }}>
                   <button
                     onClick={() => setSelectedId(c.id)}
                     aria-current={active ? "true" : undefined}
-                    className={`flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors ${
+                    className={`ease-ui relative flex w-full items-start gap-3 px-4 py-3.5 text-left ${
                       active ? "bg-sunken" : "hover:bg-sunken/60"
                     }`}
                   >
+                    {active ? <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-brand" /> : null}
                     <Avatar conversation={c} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
@@ -130,15 +132,25 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
                           </span>
                         ) : null}
                       </span>
-                      {attention ? (
-                        <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-ink">
-                          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-                          Te necesita
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            c.channel === "whatsapp" ? "bg-whatsapp-soft text-whatsapp-ink" : "bg-sunken text-ink-2"
+                          }`}
+                        >
+                          {c.channel === "whatsapp" ? <WhatsappIcon className="h-3 w-3" /> : <WebIcon className="h-3 w-3" />}
+                          {CHANNEL_LABEL[c.channel]}
                         </span>
-                      ) : null}
+                        {attention ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn-ink">
+                            <span className="h-1.5 w-1.5 rounded-full bg-warn" />
+                            Te necesita
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                   </button>
-                </li>
+                </motion.li>
               );
             })
           )}

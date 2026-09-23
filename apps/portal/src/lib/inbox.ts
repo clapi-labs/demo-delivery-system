@@ -25,8 +25,15 @@ export type InboxMessage = {
 
 export type ConversationPhase = "advising" | "collecting_address" | "awaiting_payment" | "awaiting_voucher";
 
+/** Por dónde llegó el cliente. Hoy todo es WhatsApp; `web` queda listo para
+ *  un chat en el menú público si algún día existe. */
+export type Channel = "whatsapp" | "web";
+
+export const CHANNEL_LABEL: Record<Channel, string> = { whatsapp: "WhatsApp", web: "Web" };
+
 export type InboxConversation = {
   id: number;
+  channel: Channel;
   phone: string;
   displayName: string | null;
   /** Quién responde. `true` = el bot calla y responde una persona. */

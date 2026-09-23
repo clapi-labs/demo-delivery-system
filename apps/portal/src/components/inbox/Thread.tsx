@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -49,8 +50,8 @@ export function Avatar({ conversation, size = "md" }: { conversation: InboxConve
   return (
     <span className="relative shrink-0">
       <span
-        className={`flex items-center justify-center rounded-full font-display font-semibold ${dims} ${
-          attention ? "bg-brand text-white" : "bg-sunken text-ink-2 ring-1 ring-line"
+        className={`flex items-center justify-center rounded-full font-semibold ${dims} ${
+          attention ? "bg-warn text-zinc-950" : "bg-sunken text-ink-2 ring-1 ring-black/5"
         }`}
       >
         {initials(name)}
@@ -70,12 +71,12 @@ export function Avatar({ conversation, size = "md" }: { conversation: InboxConve
 
 export function ModeChip({ paused }: { paused: boolean }) {
   return paused ? (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-st-prep-soft px-2.5 py-0.5 text-xs font-semibold text-st-prep-ink">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-ink">
       <HandIcon className="h-3.5 w-3.5" />
       Respondes tú
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-whatsapp-soft px-2.5 py-0.5 text-xs font-semibold text-whatsapp-ink">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-medium text-ok-ink">
       <BotIcon className="h-3.5 w-3.5" />
       Responde el bot
     </span>
@@ -95,13 +96,18 @@ function Bubble({ message, now }: { message: InboxMessage; now: number | null })
   const outgoing = message.role !== "customer";
   const styles =
     message.role === "customer"
-      ? "bg-surface ring-1 ring-line rounded-2xl rounded-bl-md"
+      ? "bg-surface shadow-sm ring-1 ring-black/5 rounded-2xl rounded-bl-md"
       : message.role === "bot"
-        ? "bg-whatsapp-soft rounded-2xl rounded-br-md"
-        : "bg-ink text-surface rounded-2xl rounded-br-md";
+        ? "bg-whatsapp-soft ring-1 ring-whatsapp/15 rounded-2xl rounded-br-md"
+        : "bg-zinc-900 text-zinc-50 shadow-sm rounded-2xl rounded-br-md";
 
   return (
-    <div className={`flex ${outgoing ? "justify-end" : "justify-start"} ${message.pending ? "opacity-60" : ""}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: message.pending ? 0.6 : 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 500, damping: 36 }}
+      className={`flex ${outgoing ? "justify-end" : "justify-start"}`}
+    >
       <div className={`max-w-[85%] px-3.5 py-2 text-[15px] leading-snug sm:max-w-md ${styles}`}>
         {message.role === "bot" ? (
           <p className="mb-0.5 flex items-center gap-1 text-xs font-semibold text-whatsapp-ink">
@@ -144,7 +150,7 @@ function Bubble({ message, now }: { message: InboxMessage; now: number | null })
           {message.pending ? "Enviando…" : now ? timeFormat.format(new Date(message.createdAt)) : ""}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -161,7 +167,7 @@ export function CustomerDetails({ conversation }: { conversation: InboxConversat
     <div className="space-y-6 text-sm">
       <div className="flex flex-col items-center text-center">
         <Avatar conversation={conversation} size="lg" />
-        <p className="mt-3 font-display text-2xl font-semibold">{conversationName(conversation)}</p>
+        <p className="mt-3 text-lg font-semibold tracking-title">{conversationName(conversation)}</p>
         <a
           href={`tel:+${conversation.phone}`}
           className="mt-1 inline-flex items-center gap-1.5 text-ink-2 tabular-nums hover:text-ink"
@@ -206,12 +212,12 @@ export function CustomerDetails({ conversation }: { conversation: InboxConversat
         {theirOrders.length === 0 ? (
           <p className="mt-2 text-ink-2">Todavía no ha hecho pedidos.</p>
         ) : (
-          <ul className="mt-2 divide-y divide-line rounded-lg ring-1 ring-line">
+          <ul className="card mt-2 divide-y divide-line overflow-hidden">
             {theirOrders.slice(0, 5).map((o) => (
               <li key={o.id}>
-                <Link href="/pedidos" className="flex items-center gap-3 px-3 py-2.5 hover:bg-sunken">
+                <Link href={`/pedidos?pedido=${o.code}`} className="ease-ui flex items-center gap-3 px-3 py-2.5 hover:bg-sunken">
                   <div className="min-w-0 flex-1">
-                    <p className="font-display text-lg font-semibold leading-none">{o.code}</p>
+                    <p className="font-mono text-sm font-medium">#{o.code}</p>
                     <p className="mt-1 text-xs text-ink-2">
                       {formatCOP(o.total)}
                       {now ? `, ${relativeTime(minutesBetween(o.createdAt, now)).toLowerCase()}` : ""}
@@ -327,12 +333,12 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
       </header>
 
       {attention ? (
-        <div className="flex items-center gap-3 border-b border-brand/20 bg-brand-soft px-4 py-2.5 text-sm md:px-5">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-brand" />
+        <div className="flex items-center gap-3 border-b border-warn/25 bg-warn-soft px-4 py-2.5 text-sm md:px-5">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-warn" />
           <p className="flex-1">
             <span className="font-semibold">El bot pidió ayuda.</span> {conversation.escalationReason}
           </p>
-          <button onClick={takeOver} className="shrink-0 font-semibold text-brand-ink hover:underline">
+          <button onClick={takeOver} className="ease-ui shrink-0 rounded-lg bg-warn px-3 py-1.5 font-medium text-zinc-950 hover:brightness-95">
             Atender
           </button>
         </div>

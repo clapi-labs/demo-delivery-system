@@ -60,7 +60,7 @@ function OptionGroupsEditor({
   return (
     <div className="space-y-3">
       {groups.map((group) => (
-        <div key={group.id} className="rounded-lg ring-1 ring-line">
+        <div key={group.id} className="card overflow-hidden">
           <div className="flex items-center gap-2 border-b border-line p-2">
             <input
               value={group.name}
@@ -300,7 +300,7 @@ export function ProductEditor({
     >
       {draft ? (
         <div className="space-y-5">
-          <label className="group relative flex h-40 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-sunken ring-1 ring-line">
+          <label className="group relative flex h-40 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-sunken ring-1 ring-black/5">
             {imageSrc ? (
               // eslint-disable-next-line @next/next/no-img-element -- vista previa local (blob:), no pasa por el optimizador
               <img src={imageSrc} alt="" className="h-full w-full object-cover" />
@@ -309,7 +309,7 @@ export function ProductEditor({
             ) : (
               <ImageIcon className="h-8 w-8 text-ink-3" />
             )}
-            <span className="absolute bottom-2 right-2 rounded-md bg-surface/95 px-2.5 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-line group-hover:bg-surface">
+            <span className="ease-ui absolute bottom-2 right-2 rounded-full bg-surface/95 px-3 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/5 group-hover:bg-surface">
               {imageSrc ? "Cambiar foto" : "Subir foto"}
             </span>
             <input type="file" accept="image/*" onChange={onImage} className="sr-only" />
@@ -352,7 +352,7 @@ export function ProductEditor({
             </Field>
           </div>
 
-          <div className="flex items-center justify-between gap-4 rounded-lg bg-sunken px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-sunken px-4 py-3">
             <div>
               <p className="text-sm font-medium">{draft.available ? "Disponible" : "Agotado"}</p>
               <p className="text-xs text-ink-2">
@@ -367,7 +367,7 @@ export function ProductEditor({
               <h3 className="text-sm font-medium">Promociones que lo incluyen</h3>
               <ul className="mt-2 space-y-1.5">
                 {activePromos.map((p) => (
-                  <li key={p.id} className="flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2 text-sm">
+                  <li key={p.id} className="flex items-start gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm">
                     <TagIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink" />
                     <span>
                       <span className="font-medium">{p.name}</span>
@@ -469,7 +469,7 @@ export function CategoryEditor({
               })}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-4 rounded-lg bg-sunken px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-sunken px-4 py-3">
             <div>
               <p className="text-sm font-medium">Visible en el menú</p>
               <p className="text-xs text-ink-2">Si la ocultas, sus productos tampoco se ven.</p>

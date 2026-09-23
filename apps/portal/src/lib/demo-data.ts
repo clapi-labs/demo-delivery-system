@@ -121,7 +121,25 @@ export function demoOrders(): PortalOrder[] {
       ["Hamburguesa Clásica", 2, 18000],
       ["Papas a la Francesa", 2, 8000],
     ]),
+    ...yesterdayOrders(),
   ];
+}
+
+/** Pedidos de ayer a esta misma franja: con qué comparar las métricas de hoy. */
+function yesterdayOrders(): PortalOrder[] {
+  const DAY = 24 * 60;
+  const rows: [number, number, OrderStatus, string, Line[]][] = [
+    [101, DAY + 20, "delivered", "Mateo Cárdenas", [["Doble Tocineta", 1, 26000]]],
+    [102, DAY + 45, "delivered", "Sofía Beltrán", [["Alitas x6", 1, 22000], ["Gaseosa 400 ml", 1, 4000]]],
+    [103, DAY + 80, "delivered", "Julián Pardo", [["Hamburguesa Clásica", 2, 18000]]],
+    [104, DAY + 110, "cancelled", "Mariana Gil", [["Costilla BBQ", 1, 24000]]],
+    [105, DAY + 150, "delivered", "Tomás Rojas", [["Pollo Broaster (1/4)", 2, 16000], ["Yuca Frita", 1, 9000]]],
+    [106, DAY + 200, "delivered", "Paula Méndez", [["Wrap de Pollo Crispy", 1, 17000], ["Limonada Natural", 1, 6000]]],
+    [107, DAY + 260, "delivered", "Nicolás Vega", [["Hamburguesa de Pollo", 1, 19000]]],
+  ];
+  return rows.map(([id, minutes, status, name, lines]) =>
+    order(id, `Y${id}QK`, status, minutes, name, `5731${id}000000`.slice(0, 12), "Calle 10 #20-30", "efectivo", lines),
+  );
 }
 
 /** El pedido que "entra solo" en modo demo, para ver el aviso en vivo. */
@@ -148,13 +166,14 @@ function msg(
 }
 
 function convo(
-  c: Omit<InboxConversation, "lastMessageAt" | "lastInboundAt"> & { windowMinutesAgo?: number },
+  c: Omit<InboxConversation, "lastMessageAt" | "lastInboundAt" | "channel"> & { windowMinutesAgo?: number },
 ): InboxConversation {
   const last = c.messages[c.messages.length - 1];
   const lastCustomer = [...c.messages].reverse().find((m) => m.role === "customer");
   const { windowMinutesAgo, ...rest } = c;
   return {
     ...rest,
+    channel: "whatsapp",
     lastMessageAt: last?.createdAt ?? ago(0),
     lastInboundAt:
       windowMinutesAgo !== undefined ? ago(windowMinutesAgo) : (lastCustomer?.createdAt ?? null),

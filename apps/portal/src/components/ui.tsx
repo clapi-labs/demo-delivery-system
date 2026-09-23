@@ -1,6 +1,11 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { motion } from "motion/react";
+import { useId, type ReactNode } from "react";
 
 import { ORDER_STATUS_LABEL, STATUS_TONE, type OrderStatus } from "@/lib/orders";
+
+import { SearchIcon } from "./icons";
 
 /** Piezas pequeñas que se repiten en todas las pantallas. */
 
@@ -16,22 +21,45 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
       <div className="min-w-0">
-        <h1 className="font-display text-[2rem] font-semibold leading-none tracking-tight">{title}</h1>
-        {description ? <p className="mt-1.5 text-sm text-ink-2">{description}</p> : null}
+        <h1 className="text-2xl font-semibold tracking-title sm:text-[1.75rem]">{title}</h1>
+        {description ? <p className="mt-1 text-sm text-ink-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </header>
   );
 }
 
-export function StatusBadge({ status }: { status: OrderStatus }) {
+/** Pastilla de estado del pedido: color vivo + punto + texto. */
+export function StatusBadge({ status, size = "sm" }: { status: OrderStatus; size?: "sm" | "md" }) {
   const tone = STATUS_TONE[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${tone.soft} ${tone.ink}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full font-medium ${tone.soft} ${tone.ink} ${
+        size === "md" ? "px-3 py-1 text-sm" : "px-2.5 py-0.5 text-xs"
+      }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
       {ORDER_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+type Tone = "danger" | "warn" | "ok" | "idle" | "brand";
+
+const TONE_CLASS: Record<Tone, string> = {
+  danger: "bg-danger-soft text-danger-ink",
+  warn: "bg-warn-soft text-warn-ink",
+  ok: "bg-ok-soft text-ok-ink",
+  idle: "bg-idle-soft text-idle-ink",
+  brand: "bg-brand-soft text-brand-ink",
+};
+
+export function Pill({ tone, children, className = "" }: { tone: Tone; children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${TONE_CLASS[tone]} ${className}`}
+    >
+      {children}
     </span>
   );
 }
@@ -50,7 +78,6 @@ export function Switch({
 }) {
   const track = size === "sm" ? "h-5 w-9" : "h-6 w-11";
   const knob = size === "sm" ? "h-4 w-4" : "h-5 w-5";
-  const shift = size === "sm" ? "translate-x-4" : "translate-x-5";
   return (
     <button
       type="button"
@@ -61,31 +88,36 @@ export function Switch({
         e.stopPropagation();
         onChange(!checked);
       }}
-      className={`relative inline-flex shrink-0 items-center rounded-full p-0.5 transition-colors ${track} ${
-        checked ? "bg-st-done" : "bg-line-strong"
+      className={`ease-ui relative inline-flex shrink-0 items-center rounded-full p-0.5 ${track} ${
+        checked ? "justify-end bg-ok" : "justify-start bg-line-strong"
       }`}
     >
-      <span
-        className={`rounded-full bg-white shadow-sm transition-transform ${knob} ${checked ? shift : "translate-x-0"}`}
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 700, damping: 35 }}
+        className={`rounded-full bg-white shadow-sm ${knob}`}
       />
     </button>
   );
 }
 
-/** Control segmentado: filtros y cambios de vista. */
+/** Pestañas: la pastilla blanca se desliza a la opción elegida. */
 export function Segmented<T extends string>({
   value,
   onChange,
   options,
   className = "",
+  size = "md",
 }: {
   value: T;
   onChange: (value: T) => void;
-  options: { value: T; label: ReactNode; count?: number }[];
+  options: { value: T; label: ReactNode; count?: number; countTone?: Tone }[];
   className?: string;
+  size?: "md" | "sm";
 }) {
+  const id = useId();
   return (
-    <div role="tablist" className={`flex gap-1 rounded-lg bg-sunken p-1 ${className}`}>
+    <div role="tablist" className={`flex gap-1 rounded-xl bg-well/80 p-1 ${className}`}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -94,20 +126,29 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              active ? "bg-surface text-ink shadow-sm" : "text-ink-2 hover:text-ink"
-            }`}
+            className={`ease-ui relative flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-medium ${
+              size === "sm" ? "px-2.5 py-1 text-[13px]" : "px-3 py-1.5 text-sm"
+            } ${active ? "text-ink" : "text-ink-2 hover:text-ink"}`}
           >
-            {o.label}
-            {o.count !== undefined ? (
-              <span
-                className={`min-w-5 rounded-full px-1.5 text-xs font-semibold tabular-nums ${
-                  active ? "bg-ink text-surface" : "bg-line text-ink-2"
-                }`}
-              >
-                {o.count}
-              </span>
+            {active ? (
+              <motion.span
+                layoutId={`seg-${id}`}
+                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                className="absolute inset-0 rounded-lg bg-surface shadow-sm ring-1 ring-black/5"
+              />
             ) : null}
+            <span className="relative flex items-center gap-1.5">
+              {o.label}
+              {o.count !== undefined ? (
+                <span
+                  className={`min-w-5 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${
+                    o.countTone && o.count > 0 ? TONE_CLASS[o.countTone] : active ? "bg-ink text-surface" : "bg-line text-ink-2"
+                  }`}
+                >
+                  {o.count}
+                </span>
+              ) : null}
+            </span>
           </button>
         );
       })}
@@ -129,24 +170,15 @@ export function SearchField({
   return (
     <label className={`relative block ${className}`}>
       <span className="sr-only">{placeholder}</span>
-      <svg
-        viewBox="0 0 24 24"
-        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="11" cy="11" r="6.5" />
-        <path d="m20 20-4.2-4.2" />
-      </svg>
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3">
+        <SearchIcon className="h-4 w-4" />
+      </span>
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3"
+        className="ease-ui h-10 w-full rounded-xl bg-surface pl-9 pr-3 text-sm shadow-sm outline-none ring-1 ring-black/5 placeholder:text-ink-3 focus:ring-2 focus:ring-brand/40"
       />
     </label>
   );
@@ -164,19 +196,28 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export const inputClass =
-  "h-11 w-full rounded-lg border border-line bg-surface px-3 text-[15px] outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3 lg:h-10 lg:text-sm";
+  "ease-ui h-11 w-full rounded-lg border border-line bg-surface px-3 text-[15px] outline-none placeholder:text-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/20 lg:h-10 lg:text-sm";
 
 export const buttonPrimary =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-surface transition-opacity hover:opacity-90 disabled:opacity-40 lg:h-10";
+  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 lg:h-10";
+
+export const buttonBrand =
+  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white shadow-sm hover:brightness-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 lg:h-10";
 
 export const buttonSecondary =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:border-ink-3 disabled:opacity-40 lg:h-10";
+  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-surface px-4 text-sm font-medium text-ink shadow-sm ring-1 ring-black/10 hover:bg-sunken active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 lg:h-10";
 
-export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+export function EmptyState({ icon, title, children }: { icon?: ReactNode; title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-line-strong px-6 py-10 text-center">
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-line-strong px-6 py-10 text-center">
+      {icon ? <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-3 shadow-sm ring-1 ring-black/5">{icon}</span> : null}
       <p className="font-medium">{title}</p>
-      {children ? <div className="mt-1 text-sm text-ink-2">{children}</div> : null}
+      {children ? <div className="mt-1 max-w-sm text-sm text-ink-2">{children}</div> : null}
     </div>
   );
+}
+
+/** Bloque de carga con pulso suave, en la forma de lo que va a aparecer. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-lg bg-zinc-200 ${className}`} />;
 }
