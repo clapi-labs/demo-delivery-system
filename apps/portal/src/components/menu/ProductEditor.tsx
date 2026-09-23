@@ -6,9 +6,12 @@ import { formatCOP } from "@sistema/shared";
 
 import { CloseIcon, ImageIcon, PlusIcon, TagIcon, TrashIcon } from "@/components/icons";
 import { useMenu } from "@/components/providers/MenuProvider";
+
+import { MenuSymbol } from "./MenuSymbol";
 import { Sheet } from "@/components/Sheet";
 import { Field, Switch, buttonPrimary, buttonSecondary, inputClass } from "@/components/ui";
 import {
+  MENU_SYMBOLS,
   appliesTo,
   promoValueLabel,
   scheduleLabel,
@@ -176,7 +179,6 @@ export function emptyProduct(categoryId: number): MenuProduct {
     name: "",
     description: "",
     price: 0,
-    emoji: null,
     imageUrl: null,
     available: true,
     optionGroups: [],
@@ -231,6 +233,7 @@ export function ProductEditor({
   const valid = !!draft && draft.name.trim().length > 0 && draft.price > 0;
   const activePromos = draft ? promotions.filter((p) => p.active && appliesTo(p, draft)) : [];
   const imageSrc = preview ?? draft?.imageUrl ?? null;
+  const category = categories.find((c) => c.id === draft?.categoryId);
 
   const save = () => {
     if (!draft || !valid) return;
@@ -301,8 +304,8 @@ export function ProductEditor({
             {imageSrc ? (
               // eslint-disable-next-line @next/next/no-img-element -- vista previa local (blob:), no pasa por el optimizador
               <img src={imageSrc} alt="" className="h-full w-full object-cover" />
-            ) : draft.emoji ? (
-              <span className="text-6xl">{draft.emoji}</span>
+            ) : category ? (
+              <MenuSymbol name={category.symbol} className="h-14 w-14 text-ink-3" />
             ) : (
               <ImageIcon className="h-8 w-8 text-ink-3" />
             )}
@@ -434,23 +437,37 @@ export function CategoryEditor({
     >
       {draft ? (
         <div className="space-y-5">
-          <div className="grid grid-cols-[5rem_1fr] gap-3">
-            <Field label="Ícono">
-              <input
-                value={draft.emoji ?? ""}
-                onChange={(e) => setDraft({ ...draft, emoji: e.target.value || null })}
-                placeholder="🍔"
-                className={`${inputClass} text-center text-xl`}
-              />
-            </Field>
-            <Field label="Nombre">
-              <input
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                placeholder="Ej. Hamburguesas"
-                className={inputClass}
-              />
-            </Field>
+          <Field label="Nombre">
+            <input
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              placeholder="Ej. Hamburguesas"
+              className={inputClass}
+            />
+          </Field>
+          <div>
+            <p className="text-sm font-medium">Símbolo</p>
+            <div className="mt-1.5 grid grid-cols-5 gap-2 sm:grid-cols-9" role="radiogroup" aria-label="Símbolo">
+              {MENU_SYMBOLS.map((s) => {
+                const selected = draft.symbol === s.name;
+                return (
+                  <button
+                    key={s.name}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={s.label}
+                    title={s.label}
+                    onClick={() => setDraft({ ...draft, symbol: s.name })}
+                    className={`flex aspect-square items-center justify-center rounded-lg transition-colors ${
+                      selected ? "bg-ink text-surface" : "bg-sunken text-ink-2 hover:text-ink"
+                    }`}
+                  >
+                    <MenuSymbol name={s.name} className="h-6 w-6" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-lg bg-sunken px-4 py-3">
             <div>

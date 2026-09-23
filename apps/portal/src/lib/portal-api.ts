@@ -140,7 +140,7 @@ export async function deleteProduct(productId: number): Promise<void> {
   await later();
 }
 
-/** TODO(backend): `categories` — nombre, emoji, `active` y `sort_order`. */
+/** TODO(backend): `categories` — nombre, símbolo (columna `emoji`), `active` y `sort_order`. */
 export async function saveCategories(categories: MenuCategory[]): Promise<void> {
   void categories;
   await later(150);

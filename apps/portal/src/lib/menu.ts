@@ -8,6 +8,25 @@ import { formatCOP } from "@sistema/shared";
  * forma aquí es la propuesta para cuando se conecten (ver STATUS.md).
  */
 
+/**
+ * El símbolo que identifica una categoría (en vez de un emoji). En la base es
+ * la columna `categories.emoji`: al conectar, se guarda ahí el nombre del
+ * símbolo.
+ */
+export const MENU_SYMBOLS = [
+  { name: "burger", label: "Hamburguesa" },
+  { name: "chicken", label: "Pollo" },
+  { name: "fries", label: "Papas" },
+  { name: "drink", label: "Bebida" },
+  { name: "dessert", label: "Postre" },
+  { name: "pizza", label: "Pizza" },
+  { name: "hotdog", label: "Perro caliente" },
+  { name: "star", label: "Especial" },
+  { name: "plate", label: "Plato" },
+] as const;
+
+export type MenuSymbolName = (typeof MENU_SYMBOLS)[number]["name"];
+
 export type MenuOption = { id: number; name: string; priceDelta: number };
 
 export type MenuOptionGroup = {
@@ -25,7 +44,6 @@ export type MenuProduct = {
   name: string;
   description: string;
   price: number;
-  emoji: string | null;
   imageUrl: string | null;
   available: boolean;
   optionGroups: MenuOptionGroup[];
@@ -34,7 +52,7 @@ export type MenuProduct = {
 export type MenuCategory = {
   id: number;
   name: string;
-  emoji: string | null;
+  symbol: MenuSymbolName;
   /** Una categoría oculta no aparece en el menú público, con todo y productos. */
   active: boolean;
 };

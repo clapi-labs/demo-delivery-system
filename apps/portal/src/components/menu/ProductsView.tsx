@@ -9,6 +9,7 @@ import { useMenu } from "@/components/providers/MenuProvider";
 import { EmptyState, SearchField, Switch, buttonPrimary, buttonSecondary } from "@/components/ui";
 import { appliesTo, promoPrice, type MenuCategory, type MenuProduct } from "@/lib/menu";
 
+import { MenuSymbol } from "./MenuSymbol";
 import { CategoryEditor, ProductEditor, emptyProduct } from "./ProductEditor";
 
 function MoveButtons({ onUp, onDown, label }: { onUp?: () => void; onDown?: () => void; label: string }) {
@@ -104,17 +105,17 @@ export function ProductsView() {
       </p>
 
       <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-        {[{ id: null, name: "Todo", emoji: null } as const, ...categories].map((c) => {
+        {[{ id: null, name: "Todo", symbol: null } as const, ...categories].map((c) => {
           const active = categoryFilter === c.id;
           return (
             <button
               key={c.id ?? "all"}
               onClick={() => setCategoryFilter(c.id)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 active ? "bg-ink text-surface" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"
               }`}
             >
-              {c.emoji ? <span className="mr-1.5">{c.emoji}</span> : null}
+              {c.symbol ? <MenuSymbol name={c.symbol} className="h-4 w-4" /> : null}
               {c.name}
             </button>
           );
@@ -137,8 +138,8 @@ export function ProductsView() {
           return (
             <section key={category.id} aria-labelledby={`cat-${category.id}`}>
               <header className="mb-2 flex items-center gap-3 px-1">
-                <h2 id={`cat-${category.id}`} className="font-display text-xl font-semibold">
-                  {category.emoji ? <span className="mr-2">{category.emoji}</span> : null}
+                <h2 id={`cat-${category.id}`} className="flex items-center gap-2 font-display text-xl font-semibold">
+                  <MenuSymbol name={category.symbol} className="h-5 w-5 text-ink-2" />
                   {category.name}
                 </h2>
                 <span className="text-sm text-ink-3 tabular-nums">{items.length}</span>
@@ -185,15 +186,15 @@ export function ProductsView() {
                         className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left"
                       >
                         <span
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sunken text-2xl ${
-                            product.available ? "" : "grayscale"
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sunken ${
+                            product.available ? "text-ink-2" : "text-ink-3 grayscale"
                           }`}
                         >
                           {product.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- miniatura; puede ser una vista previa local
                             <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
                           ) : (
-                            product.emoji
+                            <MenuSymbol name={category.symbol} className="h-6 w-6" />
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -258,7 +259,7 @@ export function ProductsView() {
 
         {organizing ? (
           <button
-            onClick={() => setEditingCategory({ id: 0, name: "", emoji: null, active: true })}
+            onClick={() => setEditingCategory({ id: 0, name: "", symbol: "plate", active: true })}
             className={`${buttonSecondary} w-full border-dashed`}
           >
             <PlusIcon className="h-4 w-4" />

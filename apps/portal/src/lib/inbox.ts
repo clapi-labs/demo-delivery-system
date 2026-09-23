@@ -65,8 +65,8 @@ export function initials(name: string) {
  *  solas: siempre hay una persona revisando antes de mandar. */
 export const QUICK_REPLIES = [
   "¡Hola! Te habla una persona del equipo, ¿en qué te ayudo?",
-  "Tu pedido ya está en preparación 🍔",
-  "Tu pedido va en camino 🛵",
+  "Tu pedido ya está en preparación",
+  "Tu pedido va en camino",
   "¿Me confirmas la dirección, por favor?",
   "Qué pena la demora, ya lo estamos revisando.",
   "¡Gracias por tu compra!",

@@ -17,7 +17,7 @@
 import { CATALOG } from "@sistema/shared/db/seed-data";
 
 import type { InboxConversation, InboxMessage } from "./inbox";
-import type { MenuCategory, MenuProduct, Promotion } from "./menu";
+import type { MenuCategory, MenuProduct, MenuSymbolName, Promotion } from "./menu";
 import type { OrderStatus, PortalOrder } from "./orders";
 
 const NOW = Math.floor(Date.now() / 60_000) * 60_000;
@@ -175,11 +175,11 @@ export function demoConversations(): InboxConversation[] {
       unread: 2,
       messages: [
         msg("customer", 9, "Buenas, acabo de recibir el pedido N4DKQA"),
-        msg("customer", 9, "Me llegó la hamburguesa pero faltó la gaseosa 😕"),
+        msg("customer", 9, "Me llegó la hamburguesa pero faltó la gaseosa"),
         msg(
           "bot",
           9,
-          "Qué pena contigo 🙏 Eso no te lo quiero responder a medias: ya le avisé a una persona del equipo para que te ayude.",
+          "Qué pena contigo Eso no te lo quiero responder a medias: ya le avisé a una persona del equipo para que te ayude.",
         ),
         msg("customer", 4, "Ok, quedo atento"),
       ],
@@ -194,7 +194,7 @@ export function demoConversations(): InboxConversation[] {
       unread: 0,
       messages: [
         msg("customer", 8, "Hola, buenas tardes"),
-        msg("bot", 8, "¡Hola Juan! 👋 Bienvenido a Sabor Urbano. Arma tu pedido desde el menú:", { cta: "Ver el menú" }),
+        msg("bot", 8, "¡Hola Juan! Bienvenido a Sabor Urbano. Arma tu pedido desde el menú:", { cta: "Ver el menú" }),
         msg("customer", 3, "#PEDIDO K3M9QZ"),
         msg(
           "bot",
@@ -216,10 +216,10 @@ export function demoConversations(): InboxConversation[] {
       unread: 0,
       messages: [
         msg("customer", 34, "¿Cuánto vale la hamburguesa clásica?"),
-        msg("bot", 34, "La Hamburguesa Clásica vale $18.000 e incluye papas a la francesa 🍔", { cta: "Ver el menú" }),
+        msg("bot", 34, "La Hamburguesa Clásica vale $18.000 e incluye papas a la francesa", { cta: "Ver el menú" }),
         msg("customer", 33, "Perfecto, ya la pido"),
         msg("customer", 6, "¿Ya va en camino?"),
-        msg("bot", 6, "¡Sí! Tu pedido R6CJTN salió hace unos minutos 🛵"),
+        msg("bot", 6, "¡Sí! Tu pedido R6CJTN salió hace unos minutos"),
       ],
     }),
     convo({
@@ -232,7 +232,7 @@ export function demoConversations(): InboxConversation[] {
       unread: 0,
       messages: [
         msg("customer", 12, "Hola"),
-        msg("bot", 12, "¡Hola Diego! 👋 Aquí tienes el menú para armar tu pedido:", { cta: "Ver el menú" }),
+        msg("bot", 12, "¡Hola Diego! Aquí tienes el menú para armar tu pedido:", { cta: "Ver el menú" }),
         msg("customer", 7, "#PEDIDO HT7RWA"),
         msg("bot", 7, "¡Recibí tu pedido HT7RWA! ¿Lo enviamos a Calle 63 #7-18?", { buttons: ["Sí, ahí", "Otra dirección"] }),
         msg("customer", 7, "Sí, ahí", undefined, "button"),
@@ -248,9 +248,9 @@ export function demoConversations(): InboxConversation[] {
       unread: 0,
       messages: [
         msg("customer", 50, "¿Tienen algo sin carne?"),
-        msg("bot", 50, "Sí, la Hamburguesa Vegetariana: torta de garbanzo y quinua con aguacate, $17.000 🥬"),
+        msg("bot", 50, "Sí, la Hamburguesa Vegetariana: torta de garbanzo y quinua con aguacate, $17.000"),
         msg("customer", 45, "¿Y la pueden hacer sin cebolla? Soy alérgica"),
-        msg("agent", 44, "Hola Laura, te habla Carolina de Sabor Urbano. Claro que sí, la dejamos sin cebolla y separamos la plancha 👍"),
+        msg("agent", 44, "Hola Laura, te habla Carolina de Sabor Urbano. Claro que sí, la dejamos sin cebolla y separamos la plancha"),
         msg("customer", 42, "Mil gracias!!"),
       ],
     }),
@@ -265,7 +265,7 @@ export function demoConversations(): InboxConversation[] {
       messages: [
         msg("customer", 72, "Quiero hacer un pedido"),
         msg("bot", 72, "¡Con gusto! Ábrelo desde el menú y cuando lo envíes te confirmo por acá.", { cta: "Ver el menú" }),
-        msg("customer", 58, "Muy rico todo, gracias 🙌"),
+        msg("customer", 58, "Muy rico todo, gracias"),
         msg("bot", 58, "¡Gracias a ti, Carlos! Que lo disfrutes."),
       ],
     }),
@@ -280,7 +280,7 @@ export function demoConversations(): InboxConversation[] {
       windowMinutesAgo: 60 * 26,
       messages: [
         msg("customer", 60 * 26, "¿Hacen domicilios a Chía?"),
-        msg("bot", 60 * 26, "Por ahora cubrimos un radio de 4 km alrededor del local. Chía queda fuera de esa zona 🙏"),
+        msg("bot", 60 * 26, "Por ahora cubrimos un radio de 4 km alrededor del local. Chía queda fuera de esa zona"),
       ],
     }),
   ];
@@ -293,6 +293,15 @@ export const DEMO_BOT_STATS = {
 
 // --- Menú --------------------------------------------------------------------
 
+/** Símbolo de cada categoría del catálogo semilla. */
+const CATEGORY_SYMBOL: Record<string, MenuSymbolName> = {
+  hamburguesas: "burger",
+  pollo: "chicken",
+  acompanamientos: "fries",
+  bebidas: "drink",
+  postres: "dessert",
+};
+
 export function demoMenu(): { categories: MenuCategory[]; products: MenuProduct[] } {
   let productId = 0;
   let groupId = 0;
@@ -301,7 +310,7 @@ export function demoMenu(): { categories: MenuCategory[]; products: MenuProduct[
   const categories: MenuCategory[] = CATALOG.map((c, i) => ({
     id: i + 1,
     name: c.name,
-    emoji: c.emoji,
+    symbol: CATEGORY_SYMBOL[c.slug] ?? "plate",
     active: true,
   }));
 
@@ -312,7 +321,6 @@ export function demoMenu(): { categories: MenuCategory[]; products: MenuProduct[
       name: p.name,
       description: p.description,
       price: p.price,
-      emoji: p.emoji,
       imageUrl: null,
       available: p.available ?? true,
       optionGroups: (p.optionGroups ?? []).map((g) => ({

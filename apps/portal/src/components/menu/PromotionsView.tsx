@@ -28,6 +28,7 @@ import {
   type PromotionKind,
 } from "@/lib/menu";
 
+import { MenuSymbol } from "./MenuSymbol";
 import { PriceInput } from "./ProductEditor";
 
 function scopeLabel(promo: Promotion, categories: MenuCategory[], products: MenuProduct[]) {
@@ -192,7 +193,14 @@ function PromotionEditor({ promotion, onClose }: { promotion: Promotion | null; 
                     onChange={() => toggleId(item.id)}
                     className="h-4 w-4 accent-[var(--ink)]"
                   />
-                  <span className="w-6 text-center">{item.emoji}</span>
+                  <MenuSymbol
+                    name={
+                      "symbol" in item
+                        ? item.symbol
+                        : (categories.find((c) => c.id === item.categoryId)?.symbol ?? "plate")
+                    }
+                    className="h-5 w-5 shrink-0 text-ink-2"
+                  />
                   <span className="flex-1">{item.name}</span>
                   {"price" in item ? <span className="text-ink-3 tabular-nums">{formatCOP(item.price)}</span> : null}
                 </label>
