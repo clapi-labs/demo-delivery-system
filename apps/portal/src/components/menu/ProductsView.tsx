@@ -79,7 +79,7 @@ function ProductCard({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 420, damping: 34 }}
-      className="card ease-ui flex flex-col overflow-hidden hover:shadow-md"
+      className="card flex flex-col overflow-hidden transition-shadow duration-200 ease-in-out hover:shadow-md"
     >
       <button
         onClick={onEdit}

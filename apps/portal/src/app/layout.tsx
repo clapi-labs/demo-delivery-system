@@ -27,11 +27,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={sans.variable}>
-      <body>
+      <body className="h-dvh overflow-hidden">
         <AppProviders>
-          <div className="flex h-dvh overflow-hidden">
+          <div className="flex h-dvh w-full overflow-hidden">
             <Sidebar businessName={BUSINESS.name} />
-            <main className="pb-tabbar min-w-0 flex-1 overflow-y-auto lg:pb-0">{children}</main>
+            {/* `relative`: todo lo absoluto de las páginas se posiciona (y se recorta)
+                dentro de <main>, no contra la ventana. */}
+            <main className="pb-tabbar relative h-full min-w-0 flex-1 overflow-y-auto overscroll-contain lg:pb-0">
+              {children}
+            </main>
           </div>
           <MobileTabBar />
         </AppProviders>

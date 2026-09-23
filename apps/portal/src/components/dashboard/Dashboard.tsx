@@ -175,7 +175,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
   const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step).reverse();
 
   return (
-    <figure>
+    <figure className="relative">
       <div className="relative flex h-48 gap-1.5 pl-7 sm:gap-2" onMouseLeave={() => setHovered(null)}>
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
           {ticks.map((t) => (
@@ -201,7 +201,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
                 animate={{ scaleY: 1 }}
                 transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 30 }}
                 style={{ height: `${(b.count / top) * 100}%`, minHeight: b.count ? 4 : 0, originY: 1 }}
-                className={`ease-ui w-full max-w-7 rounded-t-lg ${
+                className={`w-full max-w-7 rounded-t-lg transition-opacity duration-200 ease-in-out ${
                   b.hour === currentHour ? "bg-brand" : "bg-brand/60"
                 } ${dimmed ? "opacity-35" : "opacity-100"}`}
               />
@@ -334,7 +334,7 @@ export function Dashboard({ business }: { business: BusinessHours }) {
   const ready = !loading && now !== null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-10 pt-5 sm:px-6 lg:px-8 lg:pt-8">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-8 pt-5 sm:px-6 lg:px-8 lg:pt-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-title sm:text-[1.75rem]">

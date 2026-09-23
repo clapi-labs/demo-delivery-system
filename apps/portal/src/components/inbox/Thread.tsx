@@ -400,7 +400,7 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
                 e.preventDefault();
                 submit();
               }}
-              className="flex items-end gap-2"
+              className="relative flex items-end gap-2"
             >
               <label className="sr-only" htmlFor="composer">
                 Mensaje para {conversationName(conversation)}

@@ -129,6 +129,17 @@
     border-color: var(--color-line);
   }
 
+  /* La ventana nunca se desplaza: el único scroll de la página es el de
+   * <main>. Sin esto, cualquier elemento absoluto que se escape del flujo
+   * (p. ej. una tabla sr-only) le agrega altura fantasma al documento y
+   * aparecen dos barras de scroll. */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
   }
