@@ -1,0 +1,26 @@
+{
+  "name": "@sistema/bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Webhook de WhatsApp, motor del asistente y envío de mensajes",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@sistema/shared": "*",
+    "next": "16.3.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.6",
+    "tailwindcss": "^4"
+  }
+}

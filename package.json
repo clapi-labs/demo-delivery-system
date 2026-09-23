@@ -1,0 +1,37 @@
+{
+  "name": "whatsapp-order-system",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:bot": "npm run dev --workspace=@sistema/bot",
+    "dev:menu": "npm run dev --workspace=@sistema/menu",
+    "dev:portal": "npm run dev --workspace=@sistema/portal",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "tsc --build --verbose",
+    "db:push": "npm run db:push --workspace=@sistema/shared",
+    "db:studio": "npm run db:studio --workspace=@sistema/shared",
+    "db:seed": "npm run db:seed --workspace=@sistema/shared",
+    "verify": "tsx scripts/verify-shared.ts",
+    "verify:catalog": "tsx --env-file=.env.local scripts/verify-catalog.ts",
+    "verify:channel": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-channel.ts",
+    "verify:window": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-window-guard.ts",
+    "verify:orchestrator": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-orchestrator.ts",
+    "verify:advisor": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-advisor.ts",
+    "verify:menu-order": "tsx --tsconfig apps/menu/tsconfig.json --env-file=.env.local scripts/verify-menu-order.ts",
+    "verify:bot-menu-order": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-bot-menu-order.ts",
+    "verify:bot-active": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-bot-active.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

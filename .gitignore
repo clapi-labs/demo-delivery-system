@@ -1,0 +1,25 @@
+# dependencias
+node_modules/
+.pnp
+.pnp.*
+
+# builds
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# entorno — nunca versionar secretos
+.env*
+!.env.example
+
+# adjuntos descargados de WhatsApp (audios, comprobantes)
+media/
+
+# varios
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel

@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/*
+ * Paleta oscura, rústica, gastronómica — portada del prototipo de diseño
+ * (`prototipo_menu_app/`). Colores en oklch, radios moderados (4px–14px).
+ * El diseño final del negocio se pega encima de estos tokens cuando llegue.
+ */
+
+@theme inline {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+
+  --font-display: var(--nf-display), "Arial Narrow", sans-serif;
+  --font-sans: var(--nf-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-whatsapp: var(--whatsapp);
+  --color-whatsapp-foreground: var(--whatsapp-foreground);
+}
+
+:root {
+  --background: oklch(0.16 0.008 60);
+  --foreground: oklch(0.96 0.008 85);
+  --surface: oklch(0.2 0.009 60);
+  --surface-2: oklch(0.245 0.011 62);
+  --card: oklch(0.205 0.01 60);
+  --card-foreground: oklch(0.96 0.008 85);
+
+  --primary: oklch(0.55 0.13 45);
+  --primary-foreground: oklch(0.97 0.01 85);
+  --accent: oklch(0.78 0.08 80);
+  --accent-foreground: oklch(0.18 0.01 60);
+
+  --secondary: oklch(0.26 0.012 62);
+  --secondary-foreground: oklch(0.93 0.008 85);
+  --muted: oklch(0.24 0.01 60);
+  --muted-foreground: oklch(0.7 0.012 75);
+
+  --destructive: oklch(0.5 0.13 28);
+  --destructive-foreground: oklch(0.96 0.008 85);
+
+  --border: oklch(0.29 0.011 62);
+  --border-strong: oklch(0.38 0.016 65);
+  --input: oklch(0.24 0.01 60);
+  --ring: oklch(0.55 0.13 45);
+
+  --whatsapp: oklch(0.58 0.14 150);
+  --whatsapp-foreground: oklch(0.99 0.005 150);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+}
+
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

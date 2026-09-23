@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/*
+ * Portal — SaaS corporativo, sobrio. Fondo claro, sidebar oscuro, acentos en
+ * azul. Sin gradientes, sin glow, radios pequeños. Tablas y listas por
+ * encima de tarjetas.
+ */
+
+@theme inline {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --font-sans: var(--nf-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+:root {
+  --background: oklch(0.99 0.002 260);
+  --foreground: oklch(0.22 0.014 260);
+  --surface: oklch(1 0 0);
+  --muted: oklch(0.96 0.004 260);
+  --muted-foreground: oklch(0.5 0.012 260);
+  --border: oklch(0.9 0.006 260);
+
+  --primary: oklch(0.47 0.14 259);
+  --primary-foreground: oklch(0.98 0.005 260);
+
+  --destructive: oklch(0.55 0.16 25);
+  --destructive-foreground: oklch(0.98 0.005 260);
+
+  --sidebar: oklch(0.2 0.018 260);
+  --sidebar-foreground: oklch(0.92 0.006 260);
+  --sidebar-muted: oklch(0.65 0.014 260);
+  --sidebar-active: oklch(0.29 0.024 260);
+  --sidebar-border: oklch(0.3 0.02 260);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
