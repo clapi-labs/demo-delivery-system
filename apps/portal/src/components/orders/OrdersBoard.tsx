@@ -238,13 +238,15 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
             {/* Celular: una sola lista, los más viejos arriba. */}
             <div className="lg:hidden">
               {loading ? (
-                <div className="space-y-3">{skeletonCards(3)}</div>
+                <div className="grid gap-3 md:grid-cols-2">{skeletonCards(4)}</div>
               ) : groups.active.length === 0 ? (
                 <EmptyState icon={<OrdersIcon />} title={q ? "Nada coincide con la búsqueda" : "No hay pedidos en curso"}>
                   Cuando un cliente envíe su pedido desde el menú, aparece aquí solo.
                 </EmptyState>
               ) : (
-                <AnimatedList className="space-y-3">{groups.active.map((o) => ticket(o, true))}</AnimatedList>
+                <AnimatedList className="grid items-start gap-3 md:grid-cols-2">
+                  {groups.active.map((o) => ticket(o, true))}
+                </AnimatedList>
               )}
             </div>
 

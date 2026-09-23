@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Sidebar businessName={BUSINESS.name} />
             {/* `relative`: todo lo absoluto de las páginas se posiciona (y se recorta)
                 dentro de <main>, no contra la ventana. */}
-            <main className="pb-tabbar relative h-full min-w-0 flex-1 overflow-y-auto overscroll-contain lg:pb-0">
+            <main className="pb-tabbar relative h-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pt-[env(safe-area-inset-top)] md:pb-0">
               {children}
             </main>
           </div>

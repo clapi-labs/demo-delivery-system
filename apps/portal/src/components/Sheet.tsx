@@ -21,7 +21,8 @@ type Props = {
  * entra por la derecha en pantalla grande. Escape y tocar afuera la cierran.
  */
 export function Sheet({ open, onClose, title, subtitle, children, footer }: Props) {
-  const wide = useMedia("(min-width: 1024px)");
+  // Desde tablet entra por la derecha; en el celular sube desde abajo.
+  const wide = useMedia("(min-width: 768px)");
 
   useEffect(() => {
     if (!open) return;
@@ -53,10 +54,10 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Prop
             animate={{ x: 0, y: 0 }}
             exit={hidden}
             transition={{ type: "spring", stiffness: 420, damping: 40 }}
-            className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col rounded-t-2xl bg-surface shadow-2xl lg:inset-y-2 lg:left-auto lg:right-2 lg:max-h-none lg:w-[30rem] lg:rounded-2xl"
+            className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col rounded-t-2xl bg-surface shadow-2xl md:inset-y-2 md:left-auto md:right-2 md:max-h-none md:w-[min(30rem,calc(100vw-1rem))] md:rounded-2xl"
           >
-            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong lg:hidden" />
-            <header className="flex items-start justify-between gap-3 border-b border-line px-5 pb-4 pt-3 lg:px-6 lg:pt-5">
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong md:hidden" />
+            <header className="flex items-start justify-between gap-3 border-b border-line px-5 pb-4 pt-3 md:px-6 md:pt-5">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold tracking-title">{title}</h2>
                 {subtitle ? <div className="mt-0.5 text-sm text-ink-2">{subtitle}</div> : null}
@@ -70,10 +71,10 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Prop
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 lg:px-6">{children}</div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 md:px-6">{children}</div>
 
             {footer ? (
-              <footer className="border-t border-line px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:px-6 lg:py-4">
+              <footer className="border-t border-line px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:py-4">
                 {footer}
               </footer>
             ) : null}

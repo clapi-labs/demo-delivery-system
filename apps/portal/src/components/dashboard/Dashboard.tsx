@@ -192,6 +192,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
               key={b.hour}
               tabIndex={0}
               onMouseEnter={() => setHovered(b.hour)}
+              onClick={() => setHovered((h) => (h === b.hour ? null : b.hour))}
               onFocus={() => setHovered(b.hour)}
               onBlur={() => setHovered(null)}
               className="relative flex flex-1 cursor-default items-end justify-center outline-none"
@@ -209,7 +210,9 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
                 <motion.div
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="pointer-events-none absolute bottom-full z-10 mb-2 whitespace-nowrap rounded-lg bg-zinc-900 px-3 py-2 text-xs text-zinc-50 shadow-lg"
+                  className={`pointer-events-none absolute bottom-full z-10 mb-2 whitespace-nowrap rounded-lg bg-zinc-900 px-3 py-2 text-xs text-zinc-50 shadow-lg ${
+                    i < 2 ? "left-0" : i > buckets.length - 3 ? "right-0" : "left-1/2 -translate-x-1/2"
+                  }`}
                 >
                   <p className="font-semibold">{hourLabel(b.hour)}</p>
                   <p className="mt-0.5 text-zinc-300">
@@ -276,7 +279,7 @@ function Kitchen({ orders }: { orders: PortalOrder[] }) {
               <Icon className="h-4 w-4" />
             </span>
             <p className="mt-3 text-2xl font-semibold tabular-nums tracking-title">{count}</p>
-            <p className="truncate text-xs text-ink-2">{ORDER_COLUMN_LABEL[status]}</p>
+            <p className="text-xs leading-tight text-ink-2">{ORDER_COLUMN_LABEL[status]}</p>
             <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-sunken">
               <motion.div
                 initial={{ width: 0 }}
@@ -354,7 +357,7 @@ export function Dashboard({ business }: { business: BusinessHours }) {
         ) : null}
       </header>
 
-      <section aria-label="Lo que necesita atención" className="grid gap-3 md:grid-cols-3">
+      <section aria-label="Lo que necesita atención" className="grid gap-3 lg:grid-cols-3">
         {!ready ? (
           [0, 1, 2].map((i) => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)
         ) : (
@@ -483,20 +486,27 @@ export function Dashboard({ business }: { business: BusinessHours }) {
             <ul className="divide-y divide-line">
               {recent.map((o) => (
                 <li key={o.id} className="ease-ui group relative flex items-center gap-3 px-4 py-3 hover:bg-sunken/70">
-                  <span className="w-[4.5rem] shrink-0 font-mono text-sm font-medium">{o.code}</span>
+                  <span className="hidden w-[4.5rem] shrink-0 font-mono text-sm font-medium sm:block">{o.code}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{customerLabel(o)}</span>
+                    {/* El nombre es el enlace; su ::after cubre toda la fila. */}
+                    <Link
+                      href={`/pedidos?pedido=${o.code}`}
+                      className="block truncate text-sm font-medium after:absolute after:inset-0 after:content-['']"
+                    >
+                      {customerLabel(o)}
+                    </Link>
                     <span className="block truncate text-xs text-ink-2">
+                      <span className="mr-1.5 font-mono sm:hidden">#{o.code}</span>
                       {o.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
                     </span>
                   </span>
-                  <span className="hidden text-sm tabular-nums sm:block">{formatCOP(o.total)}</span>
-                  <span className="hidden w-16 text-right text-xs text-ink-3 md:block">
+                  <span className="hidden text-sm tabular-nums md:block">{formatCOP(o.total)}</span>
+                  <span className="hidden w-16 text-right text-xs text-ink-3 lg:block">
                     {now ? elapsedLabel(minutesBetween(o.createdAt, now)) : ""}
                   </span>
                   <StatusBadge status={o.status} />
-                  {/* Acciones rápidas: siempre en el celular, al pasar el cursor en escritorio. */}
-                  <span className="ease-ui flex shrink-0 items-center gap-1 lg:pointer-events-none lg:absolute lg:right-3 lg:rounded-lg lg:bg-surface lg:p-1 lg:opacity-0 lg:shadow-md lg:ring-1 lg:ring-black/5 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100">
+                  {/* Acciones rápidas: a la vista en táctil, al pasar el cursor con mouse. */}
+                  <span className="ease-ui relative z-10 flex shrink-0 items-center gap-1 can-hover:pointer-events-none can-hover:absolute can-hover:right-3 can-hover:rounded-lg can-hover:bg-surface can-hover:p-1 can-hover:opacity-0 can-hover:shadow-md can-hover:ring-1 can-hover:ring-black/5 can-hover:group-hover:pointer-events-auto can-hover:group-hover:opacity-100 can-hover:group-focus-within:pointer-events-auto can-hover:group-focus-within:opacity-100">
                     {o.status === "pending" ? (
                       <button
                         onClick={() => advance(o)}
@@ -507,7 +517,7 @@ export function Dashboard({ business }: { business: BusinessHours }) {
                     ) : o.status === "preparing" || o.status === "sent" ? (
                       <button
                         onClick={() => advance(o)}
-                        className="ease-ui hidden rounded-md bg-ink px-2.5 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 lg:block"
+                        className="ease-ui hidden rounded-md bg-ink px-2.5 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 can-hover:block"
                       >
                         {ADVANCE_LABEL[o.status]}
                       </button>
@@ -515,10 +525,10 @@ export function Dashboard({ business }: { business: BusinessHours }) {
                     <Link
                       href={`/pedidos?pedido=${o.code}`}
                       aria-label={`Ver detalle de ${o.code}`}
-                      className="ease-ui flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-ink-2 hover:bg-sunken hover:text-ink"
+                      className="ease-ui hidden items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-ink-2 hover:bg-sunken hover:text-ink can-hover:flex"
                     >
                       <EyeIcon className="h-4 w-4" />
-                      <span className="hidden lg:inline">Ver detalle</span>
+                      Ver detalle
                     </Link>
                   </span>
                 </li>

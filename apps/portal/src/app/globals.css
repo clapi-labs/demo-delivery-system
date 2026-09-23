@@ -166,6 +166,10 @@
   }
 }
 
+/* Dispositivos con mouse (no por ancho de pantalla): lo que aparece "al pasar
+ * el cursor" en una tablet táctil tiene que verse siempre. */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
+
 /* La tarjeta estándar: blanca, rounded-xl, sombra corta y anillo de 1px. */
 @utility card {
   background-color: var(--color-surface);

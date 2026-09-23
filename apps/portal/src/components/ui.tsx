@@ -88,7 +88,7 @@ export function Switch({
         e.stopPropagation();
         onChange(!checked);
       }}
-      className={`ease-ui relative inline-flex shrink-0 items-center rounded-full p-0.5 ${track} ${
+      className={`ease-ui relative inline-flex shrink-0 items-center rounded-full p-0.5 after:absolute after:-inset-2.5 after:content-[''] ${track} ${
         checked ? "justify-end bg-ok" : "justify-start bg-line-strong"
       }`}
     >
@@ -178,7 +178,7 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="ease-ui h-10 w-full rounded-xl bg-surface pl-9 pr-3 text-sm shadow-sm outline-none ring-1 ring-black/5 placeholder:text-ink-3 focus:ring-2 focus:ring-brand/40"
+        className="ease-ui h-11 w-full rounded-xl bg-surface pl-9 pr-3 text-base shadow-sm can-hover:h-10 can-hover:text-sm outline-none ring-1 ring-black/5 placeholder:text-ink-3 focus:ring-2 focus:ring-brand/40"
       />
     </label>
   );
@@ -196,16 +196,16 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export const inputClass =
-  "ease-ui h-11 w-full rounded-lg border border-line bg-surface px-3 text-[15px] outline-none placeholder:text-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/20 lg:h-10 lg:text-sm";
+  "ease-ui h-11 w-full rounded-lg border border-line bg-surface px-3 text-base outline-none placeholder:text-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/20 can-hover:h-10 can-hover:text-sm";
 
 export const buttonPrimary =
-  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 lg:h-10";
+  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 can-hover:h-10";
 
 export const buttonBrand =
-  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white shadow-sm hover:brightness-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 lg:h-10";
+  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white shadow-sm hover:brightness-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 can-hover:h-10";
 
 export const buttonSecondary =
-  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-surface px-4 text-sm font-medium text-ink shadow-sm ring-1 ring-black/10 hover:bg-sunken active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 lg:h-10";
+  "ease-ui inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-surface px-4 text-sm font-medium text-ink shadow-sm ring-1 ring-black/10 hover:bg-sunken active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 can-hover:h-10";
 
 export function EmptyState({ icon, title, children }: { icon?: ReactNode; title: string; children?: ReactNode }) {
   return (

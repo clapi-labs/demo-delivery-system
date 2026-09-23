@@ -351,9 +351,16 @@ trabajar en una rama aparte, sin tocar `main`.
   animaciones con **Motion** (sucesor de Framer Motion): pestañas con
   indicador deslizante, tarjetas que entran y salen, hoja con resorte,
   avisos. Carga con skeletons, no con spinners. Sin emojis: las categorías
-  del menú usan símbolos (`components/menu/MenuSymbol.tsx`). En el celular,
-  barra de navegación abajo con contadores; en escritorio, riel lateral con
-  un widget plegable del asistente.
+  del menú usan símbolos (`components/menu/MenuSymbol.tsx`).
+- **Tres tamaños.** Celular (< 768 px): barra de navegación abajo con
+  contadores, hojas que suben desde abajo, chat a pantalla completa. Tablet
+  (768–1279 px): riel compacto de íconos, pedidos en dos columnas (tres desde
+  1024 px), hojas laterales. Escritorio (≥ 1280 px): riel completo con el
+  widget plegable del asistente; el panel del cliente en Conversaciones solo
+  desde 1536 px. Lo que aparece "al pasar el cursor" depende de si hay mouse
+  (variante `can-hover:`), no del ancho: en una tablet táctil se ve siempre.
+  Botones y campos de 44 px en táctil, y campos a 16 px para que iOS no haga
+  zoom. Un solo scroll: el de `<main>`.
 - **Estado compartido en el layout** (`components/providers/`): pedidos,
   conversaciones y menú viven en providers, no en cada página. Así un pedido
   nuevo avisa esté donde esté el restaurante, los contadores de la

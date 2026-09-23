@@ -67,7 +67,7 @@ function OptionGroupsEditor({
               onChange={(e) => updateGroup(group.id, { name: e.target.value })}
               placeholder="Nombre del grupo, ej. Extras"
               aria-label="Nombre del grupo"
-              className="h-9 min-w-0 flex-1 rounded-md px-2 text-sm font-medium outline-none focus:bg-sunken"
+              className="h-10 min-w-0 flex-1 rounded-md px-2 text-base font-medium outline-none focus:bg-sunken can-hover:h-9 can-hover:text-sm"
             />
             <button
               onClick={() => onChange(groups.filter((g) => g.id !== group.id))}
@@ -111,7 +111,7 @@ function OptionGroupsEditor({
                   }
                   placeholder="Opción"
                   aria-label="Nombre de la opción"
-                  className="h-9 min-w-0 flex-1 rounded-md px-2 text-sm outline-none focus:bg-sunken"
+                  className="h-10 min-w-0 flex-1 rounded-md px-2 text-base outline-none focus:bg-sunken can-hover:h-9 can-hover:text-sm"
                 />
                 <div className="relative w-28 shrink-0">
                   <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-ink-3">
@@ -129,7 +129,7 @@ function OptionGroupsEditor({
                     }
                     placeholder="0"
                     aria-label="Precio adicional"
-                    className="h-9 w-full rounded-md border border-line pl-8 pr-2 text-right text-sm tabular-nums outline-none focus:border-ink-3"
+                    className="h-10 w-full rounded-md border border-line pl-8 pr-2 text-right text-base tabular-nums outline-none focus:border-ink-3 can-hover:h-9 can-hover:text-sm"
                   />
                 </div>
                 <button

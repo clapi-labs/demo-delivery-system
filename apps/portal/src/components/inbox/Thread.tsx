@@ -292,7 +292,7 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
         >
           <ChevronLeftIcon className="h-6 w-6" />
         </button>
-        <button onClick={() => setInfoOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left xl:pointer-events-none">
+        <button onClick={() => setInfoOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left 2xl:pointer-events-none">
           <Avatar conversation={conversation} />
           <span className="min-w-0">
             <span className="block truncate font-semibold">{conversationName(conversation)}</span>
@@ -326,7 +326,7 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
         <button
           onClick={() => setInfoOpen(true)}
           aria-label="Datos del cliente"
-          className="rounded-md p-2 text-ink-2 hover:bg-sunken xl:hidden"
+          className="rounded-md p-2 text-ink-2 hover:bg-sunken 2xl:hidden"
         >
           <InfoIcon />
         </button>
@@ -418,7 +418,7 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
                   }
                 }}
                 placeholder="Escribe un mensaje"
-                className="max-h-40 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-canvas px-4 py-2.5 text-[15px] outline-none placeholder:text-ink-3 focus:border-ink-3"
+                className="max-h-40 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-canvas px-4 py-2.5 text-base outline-none can-hover:text-[15px] placeholder:text-ink-3 focus:border-ink-3"
               />
               <button
                 type="submit"

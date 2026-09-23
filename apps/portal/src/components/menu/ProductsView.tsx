@@ -256,7 +256,7 @@ export function ProductsView() {
           const catIndex = categories.indexOf(category);
           return (
             <motion.section layout key={category.id} aria-labelledby={`cat-${category.id}`}>
-              <header className="mb-3 flex items-center gap-3">
+              <header className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface text-ink-2 shadow-sm ring-1 ring-black/5">
                   <MenuSymbol name={category.symbol} className="h-4 w-4" />
                 </span>
@@ -291,7 +291,7 @@ export function ProductsView() {
                   Esta categoría todavía no tiene productos.
                 </p>
               ) : (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   <AnimatePresence initial={false} mode="popLayout">
                     {items.map((product, i) => (
                       <ProductCard

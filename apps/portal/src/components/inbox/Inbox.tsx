@@ -70,7 +70,7 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
   return (
     <div className="flex h-full">
       <aside
-        className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-line bg-surface md:w-80 md:shrink-0 md:border-r lg:w-96`}
+        className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-line bg-surface md:w-72 md:shrink-0 md:border-r lg:w-80 xl:w-96`}
       >
         <div className="space-y-3 px-4 pb-3 pt-5 lg:pt-8">
           <div>
@@ -164,7 +164,7 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
           <div className="fixed inset-0 z-40 flex md:static md:z-auto md:min-w-0 md:flex-1">
             <Thread conversation={selected} onBack={() => setSelectedId(null)} />
           </div>
-          <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line bg-surface px-5 py-8 xl:block">
+          <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line bg-surface px-5 py-8 2xl:block">
             <CustomerDetails conversation={selected} />
           </aside>
         </>
