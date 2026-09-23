@@ -10,6 +10,8 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import type { PaymentMethod } from "../domain/payment";
+
 /**
  * Esquema del sistema.
  *
@@ -197,6 +199,11 @@ export type SelectedOption = {
   priceDelta: number;
 };
 
+/** Lo elige el cliente en el MENÚ, junto con la dirección, no por chat: para
+ *  cuando el pedido llega al bot ya está decidido. Definido en `domain/` —
+ *  ver el comentario de ahí sobre por qué no vive en este archivo. */
+export type { PaymentMethod };
+
 export const orders = pgTable(
   "orders",
   {
@@ -217,7 +224,7 @@ export const orders = pgTable(
     customerName: text("customer_name"),
     address: text("address"),
     addressNotes: text("address_notes"),
-    paymentMethod: text("payment_method").$type<"efectivo" | "transferencia">(),
+    paymentMethod: text("payment_method").$type<PaymentMethod>(),
 
     subtotal: integer("subtotal").notNull(),
     deliveryFee: integer("delivery_fee").notNull().default(0),

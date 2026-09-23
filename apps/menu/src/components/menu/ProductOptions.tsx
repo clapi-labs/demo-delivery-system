@@ -7,7 +7,9 @@ import { formatCOP, type CatalogProduct } from "@sistema/shared";
 type Props = {
   product: CatalogProduct;
   onClose: () => void;
-  onConfirm: (optionIds: number[], quantity: number) => void;
+  /** `goToCart` agrega y abre el carrito de una, sin obligar a buscar el
+   *  botón de abajo — es el camino de quien ya sabe que va a pedir eso. */
+  onConfirm: (optionIds: number[], quantity: number, goToCart: boolean) => void;
 };
 
 /**
@@ -122,13 +124,22 @@ export function ProductOptions({ product, onClose, onConfirm }: Props) {
               {formatCOP(unitPrice * quantity)}
             </span>
           </div>
-          <button
-            disabled={missingRequired}
-            onClick={() => onConfirm(optionIds, quantity)}
-            className="mt-3 h-12 w-full rounded-[8px] bg-primary text-sm font-semibold uppercase tracking-[0.14em] text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
-          >
-            Agregar al carrito
-          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              disabled={missingRequired}
+              onClick={() => onConfirm(optionIds, quantity, false)}
+              className="h-12 rounded-[8px] border border-border-strong bg-secondary text-sm font-semibold uppercase tracking-[0.1em] text-secondary-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground"
+            >
+              Agregar
+            </button>
+            <button
+              disabled={missingRequired}
+              onClick={() => onConfirm(optionIds, quantity, true)}
+              className="h-12 rounded-[8px] bg-primary text-sm font-semibold uppercase tracking-[0.1em] text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+            >
+              Ir a pagar
+            </button>
+          </div>
         </footer>
       </div>
     </div>

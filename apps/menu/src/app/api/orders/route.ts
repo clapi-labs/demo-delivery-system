@@ -4,6 +4,7 @@ import {
   BUSINESS,
   findBySku,
   generateOrderCode,
+  isPaymentMethod,
   resolveOptions,
   unitPriceWithOptions,
   verifyMenuToken,
@@ -33,10 +34,24 @@ import { env } from "@/env";
  */
 
 type RequestItem = { sku?: unknown; optionIds?: unknown; quantity?: unknown };
-type RequestBody = { items?: RequestItem[]; token?: string | null };
+type RequestBody = {
+  items?: RequestItem[];
+  token?: string | null;
+  customerName?: unknown;
+  address?: unknown;
+  paymentMethod?: unknown;
+};
 
 const MAX_LINES = 20;
 const MAX_QUANTITY = 20;
+const MAX_TEXT = 300;
+
+/** Recorta y limpia un texto libre del cliente. `null` si quedó vacío. */
+function cleanText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const clean = value.trim().slice(0, MAX_TEXT);
+  return clean.length > 0 ? clean : null;
+}
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as RequestBody | null;
@@ -44,6 +59,20 @@ export async function POST(request: Request) {
 
   if (rawItems.length === 0) {
     return NextResponse.json({ error: "carrito vacío" }, { status: 400 });
+  }
+
+  // Dirección y pago los elige el cliente en el menú (no por chat). Se validan
+  // acá igual que los productos: lo que llega del navegador nunca se guarda
+  // tal cual.
+  const customerName = cleanText(body?.customerName);
+  const address = cleanText(body?.address);
+  const paymentMethod = isPaymentMethod(body?.paymentMethod) ? body.paymentMethod : null;
+
+  if (!address || !paymentMethod) {
+    return NextResponse.json(
+      { error: "falta la dirección o el método de pago" },
+      { status: 400 },
+    );
   }
 
   const catalog = await getCatalog();
@@ -98,7 +127,7 @@ export async function POST(request: Request) {
   const code = generateOrderCode();
   const [order] = await db
     .insert(orders)
-    .values({ code, subtotal, deliveryFee, total })
+    .values({ code, subtotal, deliveryFee, total, customerName, address, paymentMethod })
     .returning();
 
   await db

@@ -1,4 +1,4 @@
-import { BUSINESS, formatCOP } from "@sistema/shared";
+import { BUSINESS, formatCOP, type PaymentMethod } from "@sistema/shared";
 
 /**
  * Todo el texto que lee el cliente, en un solo sitio.
@@ -69,6 +69,45 @@ export const MESSAGES = {
     `Transfiere ${formatCOP(total + b.deliveryFee)} a *Nequi ${b.payments.nequi}* ` +
     `y mándame el comprobante por acá.\n` +
     `Llega en ${b.deliveryTime}. Te voy avisando.`,
+
+  /**
+   * Confirmación cuando el pedido llegó COMPLETO desde el menú (con nombre,
+   * dirección y pago ya elegidos).
+   *
+   * Es un mensaje solo, no una conversación: no queda nada que preguntar, así
+   * que se le repite todo lo que anotamos para que pueda corregir si algo
+   * quedó mal, y se le dice exactamente qué sigue según cómo vaya a pagar.
+   */
+  orderConfirmedFull: (params: {
+    code: string;
+    name: string | null;
+    address: string;
+    total: number;
+    method: PaymentMethod;
+    items: string[];
+  }) => {
+    const total = formatCOP(params.total + b.deliveryFee);
+
+    const payment =
+      params.method === "efectivo"
+        ? `💵 Pagas *${total}* en efectivo cuando llegue.`
+        : params.method === "datafono"
+          ? `💳 Pagas *${total}* con tarjeta cuando llegue — el domiciliario lleva el datáfono.`
+          : `🏦 Transfiere *${total}* a *Nequi ${b.payments.nequi}* ` +
+            `(o ${b.payments.bank}) y mándame el comprobante por acá.`;
+
+    return (
+      `¡Pedido confirmado! *${params.code}* 🎉\n\n` +
+      params.items.map((line) => `• ${line}`).join("\n") +
+      `\n\nProductos: ${formatCOP(params.total)}\n` +
+      `Domicilio: ${formatCOP(b.deliveryFee)}\n` +
+      `*Total: ${total}*\n\n` +
+      (params.name ? `👤 ${params.name}\n` : "") +
+      `📍 ${params.address}\n\n` +
+      `${payment}\n\n` +
+      `Ya entró a cocina, llega en ${b.deliveryTime}. Te voy avisando 🛵`
+    );
+  },
 
   orderAlreadyRedeemed: (code: string) =>
     `Ese pedido (*${code}*) ya lo tengo en curso. Si quieres pedir algo más, ` +

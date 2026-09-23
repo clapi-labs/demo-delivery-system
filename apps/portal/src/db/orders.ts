@@ -5,6 +5,7 @@ import {
   orderItems,
   orders,
   type OrderStatus,
+  type PaymentMethod,
   type SelectedOption,
 } from "@sistema/shared/db";
 
@@ -41,7 +42,7 @@ export type PortalOrder = {
   phone: string | null;
   customerName: string | null;
   address: string | null;
-  paymentMethod: "efectivo" | "transferencia" | null;
+  paymentMethod: PaymentMethod | null;
   subtotal: number;
   deliveryFee: number;
   total: number;

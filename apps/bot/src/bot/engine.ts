@@ -32,15 +32,16 @@ export async function startOrder(
     return { text: MESSAGES.orderAlreadyRedeemed(order.code) };
   }
 
+  // `order` es la foto ANTERIOR al canje: su `redeemedAt` todavía dice null.
+  // Hay que releerlo o `assertMenuOrder` rechaza un pedido que acabamos de
+  // canjear nosotros mismos — el candado leyendo un dato que él mismo dejó
+  // obsoleto.
+  const redeemed = (await findOrderById(order.id)) ?? order;
+
   const items = await getOrderItems(order.id);
   if (items.length === 0) {
     return { text: MESSAGES.orderItemsGone() };
   }
-
-  await updateConversation(conversation.id, {
-    phase: "collecting_address",
-    activeOrderId: order.id,
-  });
 
   const lines = items.map((item) => {
     const options = item.selectedOptions.map((o) => o.name).join(", ");
@@ -48,7 +49,44 @@ export async function startOrder(
     return `${item.quantity}× ${item.nameSnapshot}${suffix} — ${formatCOP(item.lineTotal)}`;
   });
 
-  return { text: MESSAGES.orderReceived(order.code, order.total, lines) };
+  // El menú ya recogió dirección y pago: no queda nada que preguntar, así que
+  // el pedido se cierra de una. Volver a pedir por chat lo que el cliente
+  // acaba de escribir en el menú es la fricción que este camino existe para
+  // quitar.
+  //
+  // El candado de ADR-02 se comprueba igual que en el camino largo: el pedido
+  // sigue teniendo que venir del menú y estar canjeado.
+  if (redeemed.address && redeemed.paymentMethod) {
+    if (!assertMenuOrder(redeemed)) {
+      return { text: MESSAGES.ordersOnlyFromMenu() };
+    }
+
+    await updateOrder(redeemed.id, { status: "pending" });
+    await updateConversation(conversation.id, {
+      phase: "advising",
+      activeOrderId: null,
+    });
+
+    return {
+      text: MESSAGES.orderConfirmedFull({
+        code: redeemed.code,
+        name: redeemed.customerName,
+        address: redeemed.address,
+        total: redeemed.subtotal,
+        method: redeemed.paymentMethod,
+        items: lines,
+      }),
+    };
+  }
+
+  // Camino largo: el pedido llegó sin dirección o sin pago (un código viejo,
+  // o el respaldo manual). Se pregunta por chat, como siempre.
+  await updateConversation(conversation.id, {
+    phase: "collecting_address",
+    activeOrderId: order.id,
+  });
+
+  return { text: MESSAGES.orderReceived(order.code, order.subtotal, lines) };
 }
 
 /**
@@ -136,8 +174,11 @@ async function closeOrder(
   return {
     text:
       method === "efectivo"
-        ? MESSAGES.orderConfirmedCash(order.code, order.total)
-        : MESSAGES.orderConfirmedTransfer(order.code, order.total),
+        // `subtotal`, no `total`: estos mensajes le suman el domicilio ellos
+        // mismos, y `order.total` ya lo trae incluido — pasarlo cobraba el
+        // domicilio dos veces en el texto que lee el cliente.
+        ? MESSAGES.orderConfirmedCash(order.code, order.subtotal)
+        : MESSAGES.orderConfirmedTransfer(order.code, order.subtotal),
   };
 }
 

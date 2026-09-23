@@ -101,11 +101,15 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
   const handleQuickRemove = (product: CatalogProduct) => {
     cart.removeOne(cartLineKey(product.sku, []));
   };
-  const handleConfirmOptions = (optionIds: number[], quantity: number) => {
+  const handleConfirmOptions = (optionIds: number[], quantity: number, goToCart: boolean) => {
     if (!optionsFor) return;
     cart.add(optionsFor.sku, optionIds, quantity);
-    setToast(`${optionsFor.name} agregado`);
     setOptionsFor(null);
+    if (goToCart) {
+      setCartOpen(true);
+    } else {
+      setToast(`${optionsFor.name} agregado`);
+    }
   };
 
   const searchResults = query.trim() ? searchProducts(catalog, query) : null;

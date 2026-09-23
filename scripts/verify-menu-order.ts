@@ -41,12 +41,22 @@ async function main() {
     .flatMap((c) => c.products)
     .find((p) => p.available && p.optionGroups.some((g) => g.options.length > 0));
 
-  const post = (body: unknown) =>
+  /**
+   * La dirección y el pago son obligatorios desde que el menú los recoge, así
+   * que se mandan por defecto en cada prueba. Quien quiera probar que faltan
+   * los pisa explícitamente con `null`.
+   */
+  const post = (body: Record<string, unknown>) =>
     POST(
       new Request("http://localhost/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          customerName: "Cliente de prueba",
+          address: "Calle 10 #20-30, barrio Centro",
+          paymentMethod: "efectivo",
+          ...body,
+        }),
       }),
     );
 
@@ -71,6 +81,38 @@ async function main() {
   ok("queda 'draft' y sin canjear — solo el bot canjea (ADR-02)", order1.status === "draft" && order1.redeemedAt === null);
   ok("con token válido, avisa al bot", botNotified);
   ok("delivered refleja lo que respondió el bot", body1.delivered === true);
+
+  console.log("\n── El menú recoge dirección, nombre y pago (ya no el chat) ──");
+  ok("guarda la dirección", order1.address === "Calle 10 #20-30, barrio Centro");
+  ok("guarda el nombre", order1.customerName === "Cliente de prueba");
+  ok("guarda el método de pago", order1.paymentMethod === "efectivo");
+
+  const resDatafono = await post({
+    items: [{ sku: product.sku, optionIds: [], quantity: 1 }],
+    token: null,
+    paymentMethod: "datafono",
+  });
+  const bodyDatafono = (await resDatafono.json()) as { code: string };
+  codes.push(bodyDatafono.code);
+  const [orderDatafono] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.code, bodyDatafono.code));
+  ok("acepta 'datafono' como método válido", orderDatafono.paymentMethod === "datafono");
+
+  const resSinDir = await post({
+    items: [{ sku: product.sku, optionIds: [], quantity: 1 }],
+    token: null,
+    address: null,
+  });
+  ok("400 sin dirección: no hay a dónde despachar", resSinDir.status === 400);
+
+  const resPagoMalo = await post({
+    items: [{ sku: product.sku, optionIds: [], quantity: 1 }],
+    token: null,
+    paymentMethod: "bitcoin",
+  });
+  ok("400 con un método de pago inventado", resPagoMalo.status === 400);
 
   if (withOptions) {
     console.log("\n── Las opciones eligen bien la línea ──");
