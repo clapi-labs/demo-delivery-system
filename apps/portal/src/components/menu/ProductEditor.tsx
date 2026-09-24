@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useState, type ChangeEvent } from "react";
 
 import { formatCOP } from "@sistema/shared";
 
 import { CloseIcon, ImageIcon, PlusIcon, TagIcon, TrashIcon } from "@/components/icons";
 import { useMenu } from "@/components/providers/MenuProvider";
+import { categoryImage } from "@/lib/category-images";
 
 import { MenuSymbol } from "./MenuSymbol";
 import { Sheet } from "@/components/Sheet";
@@ -199,7 +201,7 @@ export function ProductEditor({
   categories: MenuCategory[];
   onClose: () => void;
 }) {
-  const { saveProduct, deleteProduct, promotions } = useMenu();
+  const { saveProduct, deleteProduct, promotions, editingSaves } = useMenu();
   const [draft, setDraft] = useState<MenuProduct | null>(product);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -257,7 +259,7 @@ export function ProductEditor({
       open={product !== null}
       onClose={onClose}
       title={isNew ? "Nuevo producto" : (draft?.name || "Producto")}
-      subtitle={isNew ? "Aparece en el menú apenas lo guardes." : undefined}
+      subtitle={isNew && editingSaves ? "Aparece en el menú apenas lo guardes." : undefined}
       footer={
         confirmDelete && draft ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -300,12 +302,22 @@ export function ProductEditor({
     >
       {draft ? (
         <div className="space-y-5">
+          {/* Decirlo en vez de fingir: editar un producto todavía no escribe
+              en la base (falta dónde guardar la foto), y alguien grabando una
+              demo tiene que saberlo antes de cambiar un precio en cámara. */}
+          {!editingSaves ? (
+            <p className="rounded-xl bg-idle-soft px-4 py-3 text-sm text-idle-ink">
+              Los cambios de producto todavía no se guardan: se ven en esta pantalla hasta que recargues. Marcar
+              agotado y las promociones sí quedan guardados.
+            </p>
+          ) : null}
+
           <label className="group relative flex h-40 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-sunken ring-1 ring-black/5">
             {imageSrc ? (
               // eslint-disable-next-line @next/next/no-img-element -- vista previa local (blob:), no pasa por el optimizador
               <img src={imageSrc} alt="" className="h-full w-full object-cover" />
             ) : category ? (
-              <MenuSymbol name={category.symbol} className="h-14 w-14 text-ink-3" />
+              <Image src={categoryImage(category.slug)} alt="" placeholder="blur" className="h-full w-full object-cover" />
             ) : (
               <ImageIcon className="h-8 w-8 text-ink-3" />
             )}

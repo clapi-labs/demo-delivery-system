@@ -1,9 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
-import { formatCOP, normalize } from "@sistema/shared";
+import { bestPromotionFor, formatCOP, livePromotions, normalize } from "@sistema/shared";
 
 import {
   ArrowDownIcon,
@@ -17,7 +18,8 @@ import {
 } from "@/components/icons";
 import { useMenu } from "@/components/providers/MenuProvider";
 import { EmptyState, Pill, SearchField, Switch, buttonPrimary, buttonSecondary } from "@/components/ui";
-import { appliesTo, promoPrice, type MenuCategory, type MenuProduct, type Promotion } from "@/lib/menu";
+import { categoryImage } from "@/lib/category-images";
+import { promoPrice, type MenuCategory, type MenuProduct, type Promotion } from "@/lib/menu";
 
 import { MenuSymbol } from "./MenuSymbol";
 import { CategoryEditor, ProductEditor, emptyProduct } from "./ProductEditor";
@@ -95,9 +97,15 @@ function ProductCard({
             className={`ease-ui h-full w-full object-cover group-hover:scale-[1.03] ${soldOut ? "grayscale" : ""}`}
           />
         ) : (
-          <MenuSymbol
-            name={category.symbol}
-            className={`ease-ui h-10 w-10 group-hover:scale-110 ${soldOut ? "text-idle" : "text-ink-3"}`}
+          // Sin foto propia, la misma foto de categoría que ve el cliente en
+          // el menú público — no un símbolo, que era lo que hacía que el Menú
+          // del portal no se pareciera al menú de verdad.
+          <Image
+            src={categoryImage(category.slug)}
+            alt=""
+            placeholder="blur"
+            sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 20vw"
+            className={`ease-ui h-full w-full object-cover group-hover:scale-[1.03] ${soldOut ? "grayscale" : ""}`}
           />
         )}
         <span className="absolute left-2 top-2 flex flex-wrap gap-1">
@@ -165,7 +173,12 @@ export function ProductsView() {
 
   const q = normalize(query.trim());
   const soldOut = products.filter((p) => !p.available).length;
-  const activePromos = promotions.filter((p) => p.active);
+  // Dos cosas distintas: "encendidas" es lo que el restaurante dejó prendido,
+  // y "corriendo ahora" es lo que el cliente está pagando en este momento —
+  // una hora feliz encendida a las 10 a.m. no le descuenta nada a nadie. El
+  // precio tachado de la tarjeta tiene que seguir lo segundo.
+  const enabledPromos = promotions.filter((p) => p.active);
+  const runningNow = livePromotions(promotions);
 
   const sections = useMemo(
     () =>
@@ -207,9 +220,11 @@ export function ProductsView() {
       <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
         <Pill tone="ok">{products.length - soldOut} disponibles</Pill>
         {soldOut ? <Pill tone="idle">{soldOut} agotados</Pill> : null}
-        {activePromos.length ? (
+        {enabledPromos.length ? (
           <Pill tone="brand">
-            {activePromos.length} {activePromos.length === 1 ? "promoción activa" : "promociones activas"}
+            {runningNow.length > 0
+              ? `${runningNow.length} ${runningNow.length === 1 ? "promoción corriendo ahora" : "promociones corriendo ahora"}`
+              : `${enabledPromos.length} ${enabledPromos.length === 1 ? "promoción activa" : "promociones activas"}`}
           </Pill>
         ) : null}
       </div>
@@ -298,7 +313,7 @@ export function ProductsView() {
                         key={product.id}
                         product={product}
                         category={category}
-                        promo={activePromos.find((p) => appliesTo(p, product))}
+                        promo={bestPromotionFor(runningNow, product) ?? undefined}
                         organizing={organizing}
                         onEdit={() => setEditing(product)}
                         onToggle={() => toggleAvailable(product.id)}
@@ -315,7 +330,7 @@ export function ProductsView() {
 
         {organizing ? (
           <button
-            onClick={() => setEditingCategory({ id: 0, name: "", symbol: "plate", active: true })}
+            onClick={() => setEditingCategory({ id: 0, slug: "", name: "", symbol: "plate", active: true })}
             className={`${buttonSecondary} w-full border border-dashed border-line-strong shadow-none ring-0`}
           >
             <PlusIcon className="h-4 w-4" />

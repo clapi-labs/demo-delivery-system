@@ -1,6 +1,8 @@
-import { CATALOG } from "./seed-data";
+import { inArray } from "drizzle-orm";
+
+import { CATALOG, PROMOTIONS } from "./seed-data";
 import { db } from "./client";
-import { categories, optionGroups, options, products } from "./schema";
+import { categories, optionGroups, options, products, promotions } from "./schema";
 
 /**
  * Carga el catálogo del restaurante (RF-03).
@@ -65,5 +67,52 @@ export async function seedCatalog() {
         );
       }
     }
+  }
+}
+
+/**
+ * Carga las promociones de ejemplo.
+ *
+ * **Va siempre después de `seedCatalog`, nunca sola.** Una promoción apunta a
+ * categorías y productos por id, y sembrar el catálogo borra y reinserta todo:
+ * los ids cambian. Por eso la semilla las declara por `slug` y `sku` y acá se
+ * resuelven contra lo que quedó en la base. Por eso mismo se borran todas
+ * antes: una promo vieja apuntaría a ids que ya no existen y el cliente vería
+ * un descuento sobre nada.
+ */
+export async function seedPromotions() {
+  await db.delete(promotions);
+
+  const slugs = [...new Set(PROMOTIONS.flatMap((p) => p.categorySlugs ?? []))];
+  const skus = [...new Set(PROMOTIONS.flatMap((p) => p.skus ?? []))];
+
+  const cats = slugs.length
+    ? await db.select().from(categories).where(inArray(categories.slug, slugs))
+    : [];
+  const prods = skus.length
+    ? await db.select().from(products).where(inArray(products.sku, skus))
+    : [];
+
+  const categoryId = new Map(cats.map((c) => [c.slug, c.id]));
+  const productId = new Map(prods.map((p) => [p.sku, p.id]));
+
+  for (const [index, promo] of PROMOTIONS.entries()) {
+    const scope = promo.categorySlugs
+      ? { type: "category" as const, ids: promo.categorySlugs.map((s) => categoryId.get(s)!).filter(Boolean) }
+      : promo.skus
+        ? { type: "products" as const, ids: promo.skus.map((s) => productId.get(s)!).filter(Boolean) }
+        : { type: "all" as const };
+
+    await db.insert(promotions).values({
+      name: promo.name,
+      kind: promo.kind,
+      value: promo.value ?? 0,
+      scope,
+      days: promo.days,
+      fromTime: promo.from ?? null,
+      toTime: promo.to ?? null,
+      active: promo.active ?? true,
+      sortOrder: index,
+    });
   }
 }

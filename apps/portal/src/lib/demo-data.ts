@@ -328,6 +328,7 @@ export function demoMenu(): { categories: MenuCategory[]; products: MenuProduct[
 
   const categories: MenuCategory[] = CATALOG.map((c, i) => ({
     id: i + 1,
+    slug: c.slug,
     name: c.name,
     symbol: CATEGORY_SYMBOL[c.slug] ?? "plate",
     active: true,

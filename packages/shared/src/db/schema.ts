@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { PaymentMethod } from "../domain/payment";
+import type { PromotionKind, PromotionScope } from "../domain/promotions";
 
 /**
  * Esquema del sistema.
@@ -72,6 +73,33 @@ export const options = pgTable("options", {
   name: text("name").notNull(),
   priceDelta: integer("price_delta").notNull().default(0),
   sortOrder: integer("sort_order").notNull().default(0),
+});
+
+/**
+ * Promociones (Fase 5).
+ *
+ * `scope` y `days` van en `jsonb` a propósito: una promoción apunta a un
+ * puñado de categorías o productos, y una tabla puente para eso sería tres
+ * consultas más por cada vez que el bot contesta "¿qué hay hoy?". La forma la
+ * define `domain/promotions.ts`, que es lo que importan las tres apps.
+ *
+ * Las horas se guardan como texto "HH:MM" en hora del negocio, no como
+ * `timestamp`: una promo de 3 a 6 p.m. no ocurre un día concreto, se repite.
+ */
+export const promotions = pgTable("promotions", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull().$type<PromotionKind>(),
+  /** Porcentaje para `percent`, precio final para `price`, 0 para 2x1. */
+  value: integer("value").notNull().default(0),
+  scope: jsonb("scope").notNull().$type<PromotionScope>().default({ type: "all" }),
+  /** 0 = domingo … 6 = sábado. */
+  days: jsonb("days").notNull().$type<number[]>().default([0, 1, 2, 3, 4, 5, 6]),
+  fromTime: text("from_time"),
+  toTime: text("to_time"),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------------------

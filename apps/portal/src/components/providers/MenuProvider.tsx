@@ -1,8 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { demoMenu, demoPromotions } from "@/lib/demo-data";
 import type { MenuCategory, MenuProduct, Promotion } from "@/lib/menu";
 import * as api from "@/lib/portal-api";
 
@@ -12,15 +11,22 @@ import { useToast } from "./ToastProvider";
  * El menú que administra el restaurante, en el layout para que los cambios
  * sobrevivan a navegar entre pantallas (y el Inicio sepa cuántos agotados hay).
  *
- * TODO(backend): cargar con `getCatalog()` (ya existe en
- * `packages/shared/src/db/queries/catalog.ts`) y las promociones cuando
- * tengan tabla. Las escrituras ya pasan por `src/lib/portal-api.ts`.
+ * El catálogo y las promociones salen de Neon (`GET /api/menu`) — es el mismo
+ * catálogo que ve el cliente en el menú público y que consulta el bot, no una
+ * copia. Marcar agotado y administrar promociones se guardan de verdad.
+ *
+ * **Crear y editar productos y categorías todavía NO se guardan**: la foto de
+ * un producto necesita almacenamiento externo (en Vercel el disco se borra) y
+ * esa decisión sigue abierta. `editingSaves` existe para que la interfaz lo
+ * diga en pantalla en vez de fingir que guardó.
  */
 
 type MenuContext = {
   categories: MenuCategory[];
   products: MenuProduct[];
   promotions: Promotion[];
+  /** Falso mientras crear/editar productos no se guarde en la base. */
+  editingSaves: boolean;
   toggleAvailable: (productId: number) => void;
   saveProduct: (product: MenuProduct, image?: File | null) => void;
   deleteProduct: (productId: number) => void;
@@ -51,10 +57,32 @@ function swap<T>(list: T[], i: number, j: number) {
 
 export function MenuProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
-  const [initial] = useState(demoMenu);
-  const [categories, setCategories] = useState(initial.categories);
-  const [products, setProducts] = useState(initial.products);
-  const [promotions, setPromotions] = useState(demoPromotions);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [products, setProducts] = useState<MenuProduct[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      const menu = await api.fetchMenu();
+      setCategories(menu.categories);
+      setProducts(menu.products);
+      setPromotions(menu.promotions);
+    } catch {
+      // Un fallo puntual no borra lo que ya está en pantalla.
+    }
+  }, []);
+
+  useEffect(() => {
+    // El menú cambia poco: basta cargarlo al entrar y al volver a la pestaña.
+    // No hace falta el sondeo de Pedidos, que sí cambia solo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- `load` es async; el setState real ocurre después del `await`, no de forma síncrona.
+    load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [load]);
 
   const failed = useCallback(
     (what: string) => toast({ message: `No se pudo guardar: ${what}`, description: "Inténtalo de nuevo." }),
@@ -161,10 +189,24 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   const savePromotion = useCallback(
     (promotion: Promotion) => {
       const isNew = promotion.id === 0;
-      const saved = isNew ? { ...promotion, id: nextId(promotions) } : promotion;
-      setPromotions((prev) => (isNew ? [saved, ...prev] : prev.map((p) => (p.id === saved.id ? saved : p))));
+      // El id provisional solo sirve para que React tenga una `key` mientras
+      // viaja la petición; el de verdad lo asigna Postgres y llega de vuelta.
+      const optimistic = isNew ? { ...promotion, id: nextId(promotions) } : promotion;
+      setPromotions((prev) =>
+        isNew ? [optimistic, ...prev] : prev.map((p) => (p.id === optimistic.id ? optimistic : p)),
+      );
       toast({ message: isNew ? "Promoción creada" : "Promoción guardada" });
-      api.savePromotion(saved).catch(() => failed(saved.name));
+      api
+        .savePromotion(promotion)
+        .then((saved) =>
+          setPromotions((prev) => prev.map((p) => (p.id === optimistic.id ? saved : p))),
+        )
+        .catch(() => {
+          setPromotions((prev) =>
+            isNew ? prev.filter((p) => p.id !== optimistic.id) : prev.map((p) => (p.id === promotion.id ? promotion : p)),
+          );
+          failed(promotion.name);
+        });
     },
     [promotions, toast, failed],
   );
@@ -173,9 +215,12 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     (promotionId: number) => {
       const promo = promotions.find((p) => p.id === promotionId);
       if (!promo) return;
-      const saved = { ...promo, active: !promo.active };
-      setPromotions((prev) => prev.map((p) => (p.id === promotionId ? saved : p)));
-      api.savePromotion(saved).catch(() => failed(promo.name));
+      const active = !promo.active;
+      setPromotions((prev) => prev.map((p) => (p.id === promotionId ? { ...p, active } : p)));
+      api.setPromotionActive(promotionId, active).catch(() => {
+        setPromotions((prev) => prev.map((p) => (p.id === promotionId ? promo : p)));
+        failed(promo.name);
+      });
     },
     [promotions, failed],
   );
@@ -187,9 +232,24 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       setPromotions((prev) => prev.filter((p) => p.id !== promotionId));
       toast({
         message: "Promoción eliminada",
-        action: { label: "Deshacer", onClick: () => setPromotions((prev) => [promo, ...prev]) },
+        // "Deshacer" la vuelve a crear en la base: ya se borró de verdad, así
+        // que restaurarla solo en pantalla dejaría una promo fantasma que
+        // desaparece al recargar.
+        action: {
+          label: "Deshacer",
+          onClick: () => {
+            setPromotions((prev) => [promo, ...prev]);
+            api
+              .savePromotion({ ...promo, id: 0 })
+              .then((saved) => setPromotions((prev) => prev.map((p) => (p.id === promo.id ? saved : p))))
+              .catch(() => failed(promo.name));
+          },
+        },
       });
-      api.deletePromotion(promotionId).catch(() => failed(promo.name));
+      api.deletePromotion(promotionId).catch(() => {
+        setPromotions((prev) => [promo, ...prev]);
+        failed(promo.name);
+      });
     },
     [promotions, toast, failed],
   );
@@ -199,6 +259,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       categories,
       products,
       promotions,
+      editingSaves: false,
       toggleAvailable,
       saveProduct,
       deleteProduct,

@@ -390,3 +390,71 @@ export const CATALOG: SeedCategory[] = [
     ],
   },
 ];
+
+/**
+ * Promociones de ejemplo (Fase 5).
+ *
+ * Se declaran por `slug` y `sku`, **no por id**: sembrar el catálogo lo borra
+ * y lo reinserta, así que los ids cambian en cada siembra. `seedPromotions`
+ * los resuelve contra lo que quedó en la base.
+ *
+ * El reparto de días está pensado para la demo: siempre hay al menos una
+ * promoción corriendo hoy, sea el día que sea, y hay días con algo distinto
+ * para que preguntarle al asistente "¿y el martes?" tenga una respuesta que no
+ * sea la misma. La última arranca **pausada** a propósito, para poder mostrar
+ * en el video que apagarla desde el portal la saca de lo que contesta el bot.
+ */
+export type SeedPromotion = {
+  name: string;
+  kind: "percent" | "price" | "2x1";
+  /** Porcentaje para `percent`, precio final para `price`. */
+  value?: number;
+  /** El alcance: categorías, productos, o ninguno de los dos = todo el menú. */
+  categorySlugs?: string[];
+  skus?: string[];
+  /** 0 = domingo … 6 = sábado. */
+  days: number[];
+  from?: string;
+  to?: string;
+  active?: boolean;
+};
+
+export const PROMOTIONS: SeedPromotion[] = [
+  {
+    name: "Hora feliz de hamburguesas",
+    kind: "percent",
+    value: 20,
+    categorySlugs: ["hamburguesas"],
+    days: [1, 2, 3, 4, 5],
+    from: "15:00",
+    to: "18:00",
+  },
+  {
+    name: "Martes de alitas",
+    kind: "2x1",
+    skus: ["POLLO-ALITAS-6"],
+    days: [2],
+  },
+  {
+    name: "Fin de semana de pollo",
+    kind: "percent",
+    value: 15,
+    categorySlugs: ["pollo"],
+    days: [0, 6],
+  },
+  {
+    name: "Papas a $5.000",
+    kind: "price",
+    value: 5000,
+    skus: ["ACOMP-PAPAS"],
+    days: [0, 1, 2, 3, 4, 5, 6],
+  },
+  {
+    name: "Miércoles de postres",
+    kind: "percent",
+    value: 30,
+    categorySlugs: ["postres"],
+    days: [3],
+    active: false,
+  },
+];

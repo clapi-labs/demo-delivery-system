@@ -32,15 +32,22 @@ export type CatalogProduct = {
   imageUrl: string | null;
   emoji: string | null;
   available: boolean;
+  /** El id real de la categoría. Lo necesitan las promociones, que apuntan a
+   *  categorías por id (`domain/promotions.ts`). */
+  categoryId: number;
   categorySlug: string;
   categoryName: string;
   optionGroups: CatalogOptionGroup[];
 };
 
 export type CatalogCategory = {
+  id: number;
   slug: string;
   name: string;
   emoji: string | null;
+  /** Una categoría oculta no sale en el menú público. Siempre `true` salvo
+   *  que se pida el catálogo con `includeHidden` (solo lo hace el portal). */
+  active: boolean;
   products: CatalogProduct[];
 };
 

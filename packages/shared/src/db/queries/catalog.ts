@@ -20,12 +20,20 @@ import { categories, optionGroups, options, products } from "../schema";
  * un pedido. Tres copias de esta consulta se desincronizan sin que nadie lo
  * note.
  */
-export async function getCatalog(): Promise<CatalogCategory[]> {
+export async function getCatalog(
+  /**
+   * `includeHidden` trae también las categorías ocultas. Lo usa **solo el
+   * portal**: el restaurante tiene que poder ver lo que escondió para volver a
+   * mostrarlo. El menú público y el bot nunca lo pasan — si lo hicieran, el
+   * interruptor de "oculta" no serviría para nada.
+   */
+  options_: { includeHidden?: boolean } = {},
+): Promise<CatalogCategory[]> {
   const [cats, prods, groups, opts] = await Promise.all([
     db
       .select()
       .from(categories)
-      .where(eq(categories.active, true))
+      .where(options_.includeHidden ? undefined : eq(categories.active, true))
       .orderBy(asc(categories.sortOrder)),
     db.select().from(products).orderBy(asc(products.sortOrder)),
     db.select().from(optionGroups).orderBy(asc(optionGroups.sortOrder)),
@@ -53,9 +61,11 @@ export async function getCatalog(): Promise<CatalogCategory[]> {
   }
 
   return cats.map((cat) => ({
+    id: cat.id,
     slug: cat.slug,
     name: cat.name,
     emoji: cat.emoji,
+    active: cat.active,
     products: prods
       .filter((p) => p.categoryId === cat.id)
       .map((p) => ({
@@ -67,6 +77,7 @@ export async function getCatalog(): Promise<CatalogCategory[]> {
         imageUrl: p.imageUrl,
         emoji: p.emoji,
         available: p.available,
+        categoryId: cat.id,
         categorySlug: cat.slug,
         categoryName: cat.name,
         optionGroups: groupsByProduct.get(p.id) ?? [],

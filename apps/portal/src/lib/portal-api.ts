@@ -13,7 +13,7 @@
  * falla, basta con lanzar el error y el provider correspondiente revierte.
  */
 
-import { demoConversations, demoIncomingOrder, demoOrders } from "./demo-data";
+import { demoConversations, demoIncomingOrder, demoMenu, demoOrders, demoPromotions } from "./demo-data";
 import type { InboxConversation, InboxMessage } from "./inbox";
 import type { MenuCategory, MenuProduct, Promotion } from "./menu";
 import type { OrderStatus, PortalOrder } from "./orders";
@@ -139,13 +139,50 @@ export async function markConversationRead(conversationId: number): Promise<void
   void conversationId;
 }
 
-// --- Menú (TODO backend) -----------------------------------------------------
+// --- Menú (conectado, menos editar productos) --------------------------------
 
-/** TODO(backend): `products.available`. El menú público lo refleja al instante. */
+async function postMenu(body: Record<string, unknown>): Promise<{ promotion?: Promotion }> {
+  const res = await fetch("/api/menu", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; promotion?: Promotion }
+    | null;
+  if (!res.ok || !data?.ok) throw new Error(data?.error ?? `POST /api/menu → ${res.status}`);
+  return data;
+}
+
+/**
+ * El catálogo real y las promociones (`GET /api/menu`).
+ *
+ * Es el mismo catálogo que ve el cliente en el menú público y que consulta el
+ * bot: una sola tabla, no una copia.
+ */
+export async function fetchMenu(): Promise<{
+  categories: MenuCategory[];
+  products: MenuProduct[];
+  promotions: Promotion[];
+}> {
+  if (DEMO_MODE) {
+    const { categories, products } = demoMenu();
+    return { categories, products, promotions: demoPromotions() };
+  }
+
+  const res = await fetch("/api/menu", { cache: "no-store" });
+  if (!res.ok) throw new Error(`GET /api/menu → ${res.status}`);
+  return (await res.json()) as { categories: MenuCategory[]; products: MenuProduct[]; promotions: Promotion[] };
+}
+
+/** `products.available`. El menú público y el bot lo reflejan al instante:
+ *  los dos leen esta misma columna en cada consulta. */
 export async function setProductAvailable(productId: number, available: boolean): Promise<void> {
-  void productId;
-  void available;
-  await later(150);
+  if (DEMO_MODE) {
+    await later(150);
+    return;
+  }
+  await postMenu({ action: "available", productId, available });
 }
 
 /**
@@ -179,16 +216,34 @@ export async function saveProductOrder(productIds: number[]): Promise<void> {
 }
 
 /**
- * TODO(backend): las promociones no tienen tabla todavía. La forma propuesta
- * está en `src/lib/menu.ts` (`Promotion`). Ojo con RN-02: el descuento se
- * calcula en el servidor al crear el pedido, nunca en el navegador.
+ * Crear o editar una promoción (`id === 0` es nueva).
+ *
+ * Devuelve la promoción **como quedó en la base**, no como se mandó: al crear,
+ * el id de verdad lo asigna Postgres, y la pantalla tiene que quedarse con ese
+ * y no con el provisional, o el siguiente "guardar" crearía una segunda.
  */
 export async function savePromotion(promotion: Promotion): Promise<Promotion> {
-  await later();
-  return promotion;
+  if (DEMO_MODE) {
+    await later();
+    return promotion;
+  }
+  const data = await postMenu({ action: "promotion", promotion });
+  return data.promotion ?? promotion;
+}
+
+/** Prender o apagar una promoción sin abrir el editor. */
+export async function setPromotionActive(promotionId: number, active: boolean): Promise<void> {
+  if (DEMO_MODE) {
+    await later(150);
+    return;
+  }
+  await postMenu({ action: "promotion-active", promotionId, active });
 }
 
 export async function deletePromotion(promotionId: number): Promise<void> {
-  void promotionId;
-  await later();
+  if (DEMO_MODE) {
+    await later();
+    return;
+  }
+  await postMenu({ action: "promotion-delete", promotionId });
 }
