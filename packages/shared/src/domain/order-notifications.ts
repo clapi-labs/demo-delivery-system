@@ -11,9 +11,14 @@ import type { OrderStatus } from "./order-status";
  * adivinarlo.
  *
  * El tono es el de un negocio que quiere que vuelvas: nombra el pedido por su
- * código —para que el cliente sepa cuál de los suyos es—, dice qué sigue, y
- * cierra agradeciendo. No lleva "veci" ni emojis de más: un aviso automático
- * que suena demasiado coloquial se lee como spam.
+ * código —para que el cliente sepa cuál de los suyos es— y dice qué sigue. No
+ * lleva "veci" ni emojis de más: un aviso automático que suena demasiado
+ * coloquial se lee como spam.
+ *
+ * **El agradecimiento va solo en el último mensaje.** Repetir "gracias por
+ * preferirnos" en cada paso lo vacía de sentido y alarga tres avisos que el
+ * cliente lee de reojo mientras espera su comida. En el de entrega sí: ahí la
+ * despedida es el mensaje.
  *
  * `pending` no genera aviso: es el estado en el que nace el pedido, y el
  * cliente ya recibió la confirmación en el chat cuando lo cerró.
@@ -23,15 +28,13 @@ export function orderStatusMessage(status: OrderStatus, code: string): string | 
     case "preparing":
       return (
         `👨‍🍳 ¡Manos a la obra! Tu pedido *${code}* ya está en preparación.\n\n` +
-        `Te avisamos apenas salga para tu dirección.\n\n` +
-        `Gracias por preferir *${BUSINESS.name}*.`
+        `Te avisamos apenas salga para tu dirección.`
       );
 
     case "sent":
       return (
         `🛵 ¡Tu pedido *${code}* ya va en camino!\n\n` +
-        `Llega en aproximadamente ${BUSINESS.deliveryTime}. Ten a la mano el pago si es en efectivo.\n\n` +
-        `Gracias por preferir *${BUSINESS.name}*.`
+        `Llega en aproximadamente ${BUSINESS.deliveryTime}. Ten a la mano el pago si es en efectivo.`
       );
 
     case "delivered":
