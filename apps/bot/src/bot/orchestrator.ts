@@ -1,4 +1,4 @@
-import { getCatalog } from "@sistema/shared/db";
+import { getCatalog, getPromotions } from "@sistema/shared/db";
 import { isOpenNow, parseOrderCode } from "@sistema/shared";
 
 import type { Conversation, Message } from "@/db/queries/conversation";
@@ -267,8 +267,8 @@ async function route(
   // 11. Todo lo demás: el asesor con el modelo (RF-13). `runAdvisor` degrada
   //     solo si `OPENAI_API_KEY` falta o la llamada falla (RF-17) — no hay
   //     una rama separada para eso acá, es el mismo camino siempre.
-  const catalog = await getCatalog();
-  return runAdvisor(conversation.phone, catalog, toModelHistory(history));
+  const [catalog, promotions] = await Promise.all([getCatalog(), getPromotions()]);
+  return runAdvisor(conversation.phone, catalog, promotions, toModelHistory(history));
 }
 
 /**
