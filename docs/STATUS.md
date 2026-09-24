@@ -468,6 +468,26 @@ cambio de estado de un pedido) y el Menú del portal (RF sobre `products`,
 
 ---
 
+## Segunda fusión de `portal-redesign`: celular y tablet (2026-09-24)
+
+Un solo commit de la rama (`09fab73`), **solo estilos y disposición** — ningún
+archivo del backend recién conectado se toca, así que la fusión no tuvo
+conflictos de código (el detalle de cada ajuste está arriba, en "Rediseño del
+portal"). Lo que cambia:
+
+- Pedidos: en celular y tablet vertical, "Todos" apila las tres secciones
+  (Nuevos, En preparación, Enviados) en vez de una lista mezclada.
+- Pestañas que se desplazan de lado con el borde desvanecido; la elegida se
+  trae a la vista sola.
+- Áreas táctiles de 36–44 px en la comanda, que vuelven a su tamaño con mouse
+  (variante `can-hover:`).
+- Arreglos de desbordamiento en Inicio, Menú y la cabecera del chat.
+
+`npm run build` (las tres apps) y `eslint` pasan; Conversaciones sigue
+mostrando los hilos reales, los mensajes de sistema y la ventana de 24 h.
+
+---
+
 ## Decisiones que conviene no reabrir
 
 Todas en `DECISIONS.md`. Las que más cuesta corregir después:
