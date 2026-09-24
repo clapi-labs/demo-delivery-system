@@ -33,7 +33,7 @@ import {
 } from "./intent";
 import { buildMenuUrl, menuButtonLabel, type MenuTarget } from "./menu-link";
 import { BUTTONS, MESSAGES } from "./messages";
-import type { BotReply } from "./types";
+import { inboxMeta, type BotReply } from "./types";
 
 /**
  * El orquestador del asistente (RF-11 a RF-19).
@@ -80,7 +80,7 @@ export async function handleIncoming(message: IncomingMessage) {
 
   if (reply) {
     await recordMessage(conversation.id, "bot", "text", reply.text, {
-      meta: { buttons: reply.buttons, menu: reply.menu },
+      meta: inboxMeta(reply),
     });
 
     if (reply.escalated) {

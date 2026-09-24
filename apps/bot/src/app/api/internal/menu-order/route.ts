@@ -8,6 +8,7 @@ import { env } from "@/env";
 
 import { deliverReply } from "@/bot/orchestrator";
 import { startOrder } from "@/bot/engine";
+import { inboxMeta } from "@/bot/types";
 
 /**
  * El menú avisa que el cliente envió un pedido (RF-26).
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
 
   const reply = await startOrder(conversation, order);
   await recordMessage(conversation.id, "bot", "text", reply.text, {
-    meta: { buttons: reply.buttons, menu: reply.menu },
+    meta: inboxMeta(reply),
   });
 
   const result = await deliverReply(payload.phone, reply);

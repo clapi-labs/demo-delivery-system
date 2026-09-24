@@ -13,6 +13,43 @@ import type { InboxConversation, InboxMessage } from "@/lib/inbox";
  * número, porque `upsertConversationOnInbound` (el bot) actualiza esa misma
  * fila en vez de crear otra.
  */
+/**
+ * `messages.meta` es `jsonb` sin forma garantizada por el tipo — y hasta
+ * hace poco `apps/bot` guardaba ahí el `{id,title}[]` interno de los
+ * botones en vez de los títulos. Esa fila vieja sigue en la base y
+ * `Thread.tsx` (que espera `buttons: string[]`) revienta al pintar un
+ * objeto crudo como hijo de React. Se sanea acá, en la frontera con la
+ * base, para que el resto del portal pueda confiar en el tipo sin volver
+ * a comprobarlo.
+ */
+function sanitizeMeta(raw: unknown): InboxMessage["meta"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+
+  const buttons = Array.isArray(r.buttons)
+    ? r.buttons
+        .map((b) =>
+          typeof b === "string"
+            ? b
+            : b && typeof b === "object" && typeof (b as { title?: unknown }).title === "string"
+              ? (b as { title: string }).title
+              : null,
+        )
+        .filter((b): b is string => b !== null)
+    : undefined;
+
+  const menu = r.menu as { label?: unknown } | undefined;
+  const cta =
+    typeof r.cta === "string"
+      ? r.cta
+      : typeof menu?.label === "string"
+        ? menu.label
+        : undefined;
+
+  if (!buttons?.length && !cta) return undefined;
+  return { ...(buttons?.length ? { buttons } : {}), ...(cta ? { cta } : {}) };
+}
+
 export async function getInboxConversations(): Promise<InboxConversation[]> {
   const convRows = await db
     .select()
@@ -38,7 +75,7 @@ export async function getInboxConversations(): Promise<InboxConversation[]> {
       kind: m.kind,
       text: m.text,
       createdAt: m.createdAt.toISOString(),
-      meta: (m.meta as InboxMessage["meta"] | null) ?? undefined,
+      meta: sanitizeMeta(m.meta),
     });
     byConversation.set(m.conversationId, list);
   }
