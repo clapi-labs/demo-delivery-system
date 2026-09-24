@@ -2,17 +2,19 @@
  * El único punto donde el portal habla con el backend.
  *
  * Las pantallas nunca llaman a `fetch` directo: llaman a estas funciones. Hoy
- * los pedidos están conectados de verdad (Neon, `app/api/orders`) y el resto
- * son enchufes listos, marcados con `TODO(backend)`, que resuelven en memoria
- * para que la interfaz se pueda usar completa.
+ * los pedidos y la lectura de la bandeja (`fetchConversations`) están
+ * conectados de verdad (Neon, `app/api/orders` y `app/api/inbox`); pausar,
+ * reactivar, responder y el menú siguen siendo enchufes listos, marcados con
+ * `TODO(backend)`, que resuelven en memoria para que la interfaz se pueda
+ * usar completa.
  *
  * Al conectar cada uno, la pantalla no cambia: se reemplaza el cuerpo de la
  * función. Las actualizaciones en pantalla ya son optimistas — si una llamada
  * falla, basta con lanzar el error y el provider correspondiente revierte.
  */
 
-import { demoIncomingOrder, demoOrders } from "./demo-data";
-import type { InboxMessage } from "./inbox";
+import { demoConversations, demoIncomingOrder, demoOrders } from "./demo-data";
+import type { InboxConversation, InboxMessage } from "./inbox";
 import type { MenuCategory, MenuProduct, Promotion } from "./menu";
 import type { OrderStatus, PortalOrder } from "./orders";
 
@@ -66,10 +68,23 @@ export async function updateOrderStatus(orderId: number, status: OrderStatus): P
   if (!res.ok) throw new Error(`POST /api/orders → ${res.status}`);
 }
 
-// --- Conversaciones (TODO backend) --------------------------------------------
+// --- Conversaciones (conectado el GET; el resto sigue TODO backend) ---------
 
 /** Simula la latencia de red, para que los estados de "enviando" se vean. */
 const later = (ms = 250) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * La bandeja, conectada a `GET /api/inbox` — una fila por número de WhatsApp
+ * (`conversations.phone` es `unique()` en el esquema), con su hilo real.
+ */
+export async function fetchConversations(): Promise<InboxConversation[]> {
+  if (DEMO_MODE) return demoConversations();
+
+  const res = await fetch("/api/inbox", { cache: "no-store" });
+  if (!res.ok) throw new Error(`GET /api/inbox → ${res.status}`);
+  const data = (await res.json()) as { conversations: InboxConversation[] };
+  return data.conversations;
+}
 
 /**
  * TODO(backend): pausar el bot en esta conversación

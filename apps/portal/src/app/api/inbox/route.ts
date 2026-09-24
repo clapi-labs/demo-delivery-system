@@ -1,3 +1,9 @@
+import { NextResponse } from "next/server";
+
+import { getInboxConversations } from "@/db/inbox";
+
+export const dynamic = "force-dynamic";
+
 /**
  * La bandeja de conversaciones (Fase 5).
  *
@@ -5,14 +11,16 @@
  * bot los escribe al recibirlos y al responder, así que la bandeja no espeja
  * nada: lee la fuente.
  *
- * GET: lista de conversaciones + hilo de una.
- * POST: responder (pausa el bot en ESA conversación), o marcar resuelta
- * (lo reactiva).
+ * GET: lista de conversaciones + su hilo completo.
  *
- * La regla: abrir una conversación NO pausa al asistente; responder SÍ. Abrir
- * un chat es mirar, escribir es tomarlo.
- *
- * Muestra además cuánto queda de la ventana de 24 h (`windowRemaining`), para
- * que el agente sepa si puede escribir antes de intentarlo.
+ * **Todavía no hay POST.** Pausar, reactivar y responder desde acá siguen
+ * marcados `TODO(backend)` en `apps/portal/src/lib/portal-api.ts` — responder
+ * tiene que salir por `apps/bot` (`POST /api/internal/send`, RN-05: un solo
+ * camino de salida), que además debe comprobar la ventana de 24 h antes de
+ * intentar nada.
  */
-export {};
+
+export async function GET() {
+  const conversations = await getInboxConversations();
+  return NextResponse.json({ conversations });
+}
