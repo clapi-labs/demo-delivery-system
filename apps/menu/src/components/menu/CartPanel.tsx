@@ -19,6 +19,8 @@ type Props = {
   onClose: () => void;
   lines: CartLine[];
   subtotal: number;
+  /** Lo que costaría sin promociones; si es mayor, se muestra el ahorro. */
+  fullSubtotal: number;
   deliveryFee: number;
   businessName: string;
   token: string | null;
@@ -52,6 +54,7 @@ export function CartPanel({
   onClose,
   lines,
   subtotal,
+  fullSubtotal,
   deliveryFee,
   businessName,
   token,
@@ -307,14 +310,24 @@ export function CartPanel({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <p className="truncate text-sm font-semibold text-flour">{l.product.name}</p>
-                      <span className="tnum shrink-0 text-base font-semibold text-ember">
-                        {formatCOP(l.unitPrice * l.quantity)}
+                      <span className="flex shrink-0 items-baseline gap-2">
+                        {l.lineTotal < l.fullUnitPrice * l.quantity ? (
+                          <span className="tnum text-xs text-muted-foreground line-through">
+                            {formatCOP(l.fullUnitPrice * l.quantity)}
+                          </span>
+                        ) : null}
+                        <span className="tnum text-base font-semibold text-ember">
+                          {formatCOP(l.lineTotal)}
+                        </span>
                       </span>
                     </div>
                     {l.optionNames.length > 0 ? (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {l.optionNames.join(", ")}
                       </p>
+                    ) : null}
+                    {l.promotionName ? (
+                      <p className="mt-0.5 truncate text-xs font-medium text-ember">{l.promotionName}</p>
                     ) : null}
                     <div className="mt-2 flex items-center justify-between">
                       <div className="flex h-9 items-center gap-1 rounded-[6px] border border-border bg-secondary px-1">
@@ -356,6 +369,12 @@ export function CartPanel({
                 <span>Subtotal</span>
                 <span className="tnum">{formatCOP(subtotal)}</span>
               </div>
+              {fullSubtotal > subtotal ? (
+                <div className="flex justify-between text-ember">
+                  <span>Ahorras</span>
+                  <span className="tnum">−{formatCOP(fullSubtotal - subtotal)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-muted-foreground">
                 <span>Domicilio</span>
                 <span className="tnum">{formatCOP(deliveryFee)}</span>

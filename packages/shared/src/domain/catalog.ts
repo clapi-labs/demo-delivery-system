@@ -1,4 +1,10 @@
 import { normalize } from "./format";
+import {
+  bestPromotionFor,
+  livePromotions,
+  promoPrice,
+  type Promotion,
+} from "./promotions";
 
 /**
  * Tipos del catálogo y helpers **puros**.
@@ -137,4 +143,64 @@ export function unitPriceWithOptions(
     product.price +
     resolveOptions(product, optionIds).reduce((sum, o) => sum + o.priceDelta, 0)
   );
+}
+
+export type PricedLine = {
+  /** Lo que se cobra por unidad, ya con el descuento aplicado. */
+  unitPrice: number;
+  /** Lo que costaría sin promoción. Es el precio tachado del menú. */
+  fullUnitPrice: number;
+  /** El total de la línea. No siempre es `unitPrice × cantidad`: un 2x1
+   *  cobra la mitad de las unidades, redondeando hacia arriba. */
+  lineTotal: number;
+  /** La promoción que se aplicó, si alguna. */
+  promotion: Promotion | null;
+};
+
+/**
+ * El precio de una línea del carrito **con promociones** (RN-02).
+ *
+ * Una sola función para los tres sitios que tienen que coincidir: la tarjeta
+ * del menú, el total del carrito en el navegador y el recálculo del servidor
+ * al crear el pedido. Si vivieran por separado, el cliente vería un precio y
+ * pagaría otro — y el que manda es el del servidor, así que se enteraría
+ * después de pedir.
+ *
+ * Dos decisiones que no son obvias:
+ *
+ * - **El descuento va sobre el precio base, no sobre las opciones.** Una hora
+ *   feliz del 20% en hamburguesas no tiene por qué rebajar la tocineta extra
+ *   que el cliente agregó aparte.
+ * - **El 2x1 no baja el precio unitario, baja cuántas unidades se cobran.**
+ *   Dos alitas se cobran como una; tres, como dos. Mostrarlo como "mitad de
+ *   precio por unidad" daría el mismo número solo con cantidades pares.
+ *
+ * `now` se recibe en vez de leerlo adentro para que el servidor pueda fijar
+ * un instante y que todas las líneas de un pedido se calculen contra la misma
+ * hora: un pedido enviado a las 5:59:59 no puede tener una línea dentro de la
+ * hora feliz y otra fuera.
+ */
+export function priceLine(
+  product: CatalogProduct,
+  optionIds: number[],
+  quantity: number,
+  promotions: Promotion[],
+  now: Date = new Date(),
+): PricedLine {
+  const optionsDelta = resolveOptions(product, optionIds).reduce(
+    (sum, o) => sum + o.priceDelta,
+    0,
+  );
+  const fullUnitPrice = product.price + optionsDelta;
+
+  const promotion = bestPromotionFor(livePromotions(promotions, now), product);
+  if (!promotion) {
+    return { unitPrice: fullUnitPrice, fullUnitPrice, lineTotal: fullUnitPrice * quantity, promotion: null };
+  }
+
+  const discountedBase = promoPrice(promotion, product.price);
+  const unitPrice = discountedBase === null ? fullUnitPrice : discountedBase + optionsDelta;
+  const charged = promotion.kind === "2x1" ? Math.ceil(quantity / 2) : quantity;
+
+  return { unitPrice, fullUnitPrice, lineTotal: unitPrice * charged, promotion };
 }

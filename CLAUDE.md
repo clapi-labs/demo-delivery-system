@@ -90,6 +90,7 @@ scripts/    verificaciones
 | `npm run dev:bot` / `dev:menu` / `dev:portal` | Servidores (3001 / 3002 / 3003) |
 | `npm run build` | Compila las tres apps |
 | `npm run verify` | Token, ventana de 24 h, código de pedido, formato |
+| `npm run verify:promotions` | El precio con promoción (RN-10), contra el catálogo real |
 | `npm run db:push` | Aplica el esquema |
 | `npm run db:studio` | Explorador de la base |
 

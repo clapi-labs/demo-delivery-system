@@ -8,8 +8,10 @@ import {
   flatten,
   formatCOP,
   searchProducts,
+  priceLine,
   type CatalogCategory,
   type CatalogProduct,
+  type Promotion,
 } from "@sistema/shared";
 
 import heroImage from "@/assets/hero-grill.jpg";
@@ -33,6 +35,7 @@ type Business = {
 
 type Props = {
   catalog: CatalogCategory[];
+  promotions: Promotion[];
   initialQuery: string;
   initialAdd: CartItem[];
   token: string | null;
@@ -46,9 +49,22 @@ type Props = {
  * los pide en su propio paso (`CartPanel`), no acá — el menú arma el pedido
  * y lo manda.
  */
-export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: Props) {
+export function MenuApp({ catalog, promotions, initialQuery, initialAdd, token, business }: Props) {
   const products = useMemo(() => flatten(catalog), [catalog]);
-  const cart = useCart(products, initialAdd);
+
+  // La promoción que corre AHORA para cada producto, resuelta con la misma
+  // función que usa el servidor al cobrar (`priceLine`): la tarjeta no puede
+  // prometer un precio distinto del que va a salir en el pedido.
+  const promoBySku = useMemo(() => {
+    const now = new Date();
+    return new Map(
+      products.map((p) => {
+        const priced = priceLine(p, [], 1, promotions, now);
+        return [p.sku, { promotion: priced.promotion, price: priced.unitPrice }];
+      }),
+    );
+  }, [products, promotions]);
+  const cart = useCart(products, initialAdd, promotions);
   const status = useServiceStatus();
   useScrollHeat();
 
@@ -305,6 +321,8 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
                   <ProductCard
                     key={p.sku}
                     product={p}
+                    promotion={promoBySku.get(p.sku)?.promotion ?? null}
+                    promoPrice={promoBySku.get(p.sku)?.price ?? p.price}
                     quantity={quantityOf(p.sku)}
                     onQuickAdd={() => handleQuickAdd(p)}
                     onQuickRemove={() => handleQuickRemove(p)}
@@ -336,6 +354,8 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
                     <ProductCard
                       key={p.sku}
                       product={p}
+                      promotion={promoBySku.get(p.sku)?.promotion ?? null}
+                      promoPrice={promoBySku.get(p.sku)?.price ?? p.price}
                       quantity={quantityOf(p.sku)}
                       onQuickAdd={() => handleQuickAdd(p)}
                       onQuickRemove={() => handleQuickRemove(p)}
@@ -392,6 +412,7 @@ export function MenuApp({ catalog, initialQuery, initialAdd, token, business }: 
         onClose={() => setCartOpen(false)}
         lines={cart.lines}
         subtotal={cart.subtotal}
+        fullSubtotal={cart.fullSubtotal}
         deliveryFee={business.deliveryFee}
         businessName={business.name}
         token={token}

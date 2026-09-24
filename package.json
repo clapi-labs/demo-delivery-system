@@ -18,6 +18,7 @@
     "db:seed": "npm run db:seed --workspace=@sistema/shared",
     "verify": "tsx scripts/verify-shared.ts",
     "verify:catalog": "tsx --env-file=.env.local scripts/verify-catalog.ts",
+    "verify:promotions": "tsx --env-file=.env.local scripts/verify-promotions.ts",
     "verify:channel": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-channel.ts",
     "verify:window": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-window-guard.ts",
     "verify:orchestrator": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-orchestrator.ts",

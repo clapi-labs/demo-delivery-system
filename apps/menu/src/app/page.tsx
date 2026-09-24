@@ -1,5 +1,5 @@
 import { BUSINESS, verifyMenuToken } from "@sistema/shared";
-import { getCatalog } from "@sistema/shared/db";
+import { getCatalog, getPromotions } from "@sistema/shared/db";
 
 import { MenuApp } from "@/components/menu/MenuApp";
 import { env } from "@/env";
@@ -14,14 +14,16 @@ export default async function Page({
 }) {
   const { t, q, add } = await searchParams;
 
-  const [catalog, payload] = await Promise.all([
+  const [catalog, promotions, payload] = await Promise.all([
     getCatalog(),
+    getPromotions(),
     Promise.resolve(t ? verifyMenuToken(t, env.menuTokenSecret) : null),
   ]);
 
   return (
     <MenuApp
       catalog={catalog}
+      promotions={promotions}
       initialQuery={q ?? ""}
       initialAdd={parseAddParam(add)}
       token={payload ? (t ?? null) : null}

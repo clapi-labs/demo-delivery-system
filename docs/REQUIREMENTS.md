@@ -71,6 +71,7 @@
 | RF-45 | Promociones: crear, editar, pausar y borrar desde el portal | ✅ tabla `promotions` + `POST /api/menu`; las reglas (a qué aplica, qué precio deja, qué días corre) viven en `@sistema/shared` |
 | RF-46 | El asistente responde por las promociones de un día | ✅ herramienta `lookup_promotions`: el modelo solo dice el día, el código resuelve la promo contra la tabla con nombres y precios reales |
 | RF-47 | El asistente recomienda por ingredientes | ✅ herramienta `recommend_products`: filtra por la descripción real del catálogo ("una hamburguesa sin queso") |
+| RF-48 | La promoción descuenta el precio real del pedido | ✅ `priceLine()` en `@sistema/shared`, la misma función para la tarjeta del menú, el total del carrito y el recálculo del servidor (RN-02). `npm run verify:promotions` |
 
 ## Despliegue · Fase 6
 
@@ -95,3 +96,4 @@
 | RN-07 | Fuera de la ventana de 24 h no se intenta enviar; se reintenta después |
 | RN-08 | El comprobante se guarda en disco **antes** de intentar leerlo |
 | RN-09 | Con `BOT_ACTIVE=false` (número compartido con Qanelo, ADR-11), ningún envío sale, sin excepción |
+| RN-10 | El precio con promoción lo calcula `priceLine()` y nadie más: navegador y servidor tienen que dar el mismo número |

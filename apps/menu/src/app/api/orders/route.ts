@@ -5,11 +5,18 @@ import {
   findBySku,
   generateOrderCode,
   isPaymentMethod,
+  priceLine,
   resolveOptions,
-  unitPriceWithOptions,
   verifyMenuToken,
 } from "@sistema/shared";
-import { db, getCatalog, orderItems, orders, type SelectedOption } from "@sistema/shared/db";
+import {
+  db,
+  getCatalog,
+  getPromotions,
+  orderItems,
+  orders,
+  type SelectedOption,
+} from "@sistema/shared/db";
 
 import { env } from "@/env";
 
@@ -75,7 +82,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const catalog = await getCatalog();
+  const [catalog, promotions] = await Promise.all([getCatalog(), getPromotions()]);
+
+  // Un solo instante para todo el pedido: uno enviado a las 5:59:59 no puede
+  // tener una línea dentro de la hora feliz y la siguiente fuera.
+  const now = new Date();
 
   const lines: {
     product: ReturnType<typeof findBySku>;
@@ -106,17 +117,28 @@ export async function POST(request: Request) {
   }
 
   const itemsToInsert = lines.map(({ product, optionIds, quantity }) => {
-    const unitPrice = unitPriceWithOptions(product!, optionIds);
+    // El precio lo decide `priceLine`, la misma función que usa el carrito en
+    // el navegador — por eso el cliente no puede ver un total y pagar otro.
+    // Las promociones se aplican acá, contra la base, nunca contra lo que
+    // mande el navegador (RN-02).
+    const priced = priceLine(product!, optionIds, quantity, promotions, now);
     const selectedOptions: SelectedOption[] = resolveOptions(product!, optionIds).map(
       (o) => ({ group: o.groupName, name: o.name, priceDelta: o.priceDelta }),
     );
+    // El nombre congela también la promoción: dentro de un mes, quien mire
+    // este pedido tiene que poder explicar por qué costó menos de lo que
+    // dice la carta de hoy.
+    const nameSnapshot = priced.promotion
+      ? `${product!.name} (${priced.promotion.name})`
+      : product!.name;
+
     return {
       productId: product!.id,
-      nameSnapshot: product!.name,
-      unitPrice,
+      nameSnapshot,
+      unitPrice: priced.unitPrice,
       quantity,
       selectedOptions,
-      lineTotal: unitPrice * quantity,
+      lineTotal: priced.lineTotal,
     };
   });
 

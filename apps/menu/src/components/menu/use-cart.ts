@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { resolveOptions, unitPriceWithOptions, type CatalogProduct } from "@sistema/shared";
+import { priceLine, resolveOptions, type CatalogProduct, type Promotion } from "@sistema/shared";
 
 import { cartLineKey, readCart, writeCart, type CartItem } from "@/lib/cart";
 
@@ -11,7 +11,13 @@ export type CartLine = {
   product: CatalogProduct;
   optionIds: number[];
   optionNames: string[];
+  /** Ya con el descuento aplicado, si hay promoción corriendo. */
   unitPrice: number;
+  /** Lo que costaría sin promoción; se pinta tachado cuando difiere. */
+  fullUnitPrice: number;
+  lineTotal: number;
+  /** El nombre de la promoción que se aplicó, para poder decirlo en pantalla. */
+  promotionName: string | null;
   quantity: number;
 };
 
@@ -22,7 +28,11 @@ export type CartLine = {
  * hubiera en `localStorage` tomando el MÁXIMO por línea, no la suma — así
  * recargar el mismo link no duplica lo que el cliente ya tenía.
  */
-export function useCart(catalog: CatalogProduct[], initialAdd: CartItem[]) {
+export function useCart(
+  catalog: CatalogProduct[],
+  initialAdd: CartItem[],
+  promotions: Promotion[] = [],
+) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -100,24 +110,33 @@ export function useCart(catalog: CatalogProduct[], initialAdd: CartItem[]) {
           const product = catalog.find((p) => p.sku === item.sku);
           if (!product) return null;
           const options = resolveOptions(product, item.optionIds);
+          // La MISMA función que usa el servidor al crear el pedido: si
+          // divergieran, el cliente vería un total y pagaría otro.
+          const priced = priceLine(product, item.optionIds, item.quantity, promotions);
           return {
             key: cartLineKey(item.sku, item.optionIds),
             product,
             optionIds: item.optionIds,
             optionNames: options.map((o) => o.name),
-            unitPrice: unitPriceWithOptions(product, item.optionIds),
+            unitPrice: priced.unitPrice,
+            fullUnitPrice: priced.fullUnitPrice,
+            lineTotal: priced.lineTotal,
+            promotionName: priced.promotion?.name ?? null,
             quantity: item.quantity,
           };
         })
         .filter((l): l is CartLine => l !== null),
-    [items, catalog],
+    [items, catalog, promotions],
   );
 
   const count = useMemo(() => lines.reduce((sum, l) => sum + l.quantity, 0), [lines]);
-  const subtotal = useMemo(
-    () => lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+  // Se suman los `lineTotal`, no `unitPrice × cantidad`: un 2x1 cobra la
+  // mitad de las unidades, y esa diferencia solo la conoce `priceLine`.
+  const subtotal = useMemo(() => lines.reduce((sum, l) => sum + l.lineTotal, 0), [lines]);
+  const fullSubtotal = useMemo(
+    () => lines.reduce((sum, l) => sum + l.fullUnitPrice * l.quantity, 0),
     [lines],
   );
 
-  return { items, lines, count, subtotal, add, removeOne, removeAll, clear };
+  return { items, lines, count, subtotal, fullSubtotal, add, removeOne, removeAll, clear };
 }

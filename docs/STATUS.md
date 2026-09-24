@@ -575,14 +575,37 @@ para esto: es un link que *abre* un chat, no puede empujar un mensaje.)
 Verificado de punta a punta: tres avisos reales entregados al WhatsApp del
 número de prueba, y los tres quedaron también en el hilo de la bandeja.
 
-### Lo que queda cojo a propósito
+### 5. La promoción descuenta de verdad
 
-**Una promoción no cambia todavía lo que el cliente paga.** El asistente la
-anuncia con el precio con descuento, pero el menú cobra el precio lleno: el
-recálculo del servidor (RN-02) no mira las promociones. Es el único punto
-donde la demo puede contradecirse en cámara —preguntar por la promo y luego
-pedir ese producto— y está pendiente de decidir si se toca, porque es el
-camino del dinero.
+Lo anterior dejaba un hueco: el asistente anunciaba "la Clásica te queda en
+$14.400" y el menú cobraba $18.000. Se cerró con **una sola función**,
+`priceLine()` en `domain/catalog.ts`, que usan los tres sitios que tienen que
+coincidir: la tarjeta del menú, el total del carrito en el navegador y el
+recálculo del servidor al crear el pedido (RN-02). Si vivieran por separado,
+el cliente vería un total y pagaría otro — y el que manda es el del servidor,
+así que se enteraría después de pedir.
+
+Tres decisiones que no son obvias:
+
+- **El descuento va sobre el precio base, no sobre las opciones.** Una hora
+  feliz del 20% en hamburguesas no tiene por qué rebajar la tocineta extra
+  que el cliente agregó aparte.
+- **El 2x1 no baja el precio unitario, baja cuántas unidades se cobran.** Dos
+  se cobran como una, tres como dos. Como "mitad de precio" daría el mismo
+  número solo con cantidades pares.
+- **El servidor fija un instante y calcula todas las líneas contra él.** Un
+  pedido enviado a las 5:59:59 no puede tener una línea dentro de la hora
+  feliz y la siguiente fuera.
+
+El `nameSnapshot` de la línea guarda también el nombre de la promoción
+("Papas a la Francesa (Papas a $5.000)"): dentro de un mes, quien mire ese
+pedido tiene que poder explicar por qué costó menos de lo que dice la carta.
+
+`npm run verify:promotions` cubre el cálculo (porcentaje, precio fijo, 2x1
+con cantidades pares e impares, opciones, día equivocado, promo pausada,
+fuera de franja horaria, y cuál gana si se solapan dos). Comprobado además
+con un pedido real creado por la API: 2 papas en promoción quedaron en
+$10.000 y no en $16.000.
 
 ---
 

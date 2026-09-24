@@ -1,11 +1,16 @@
 import Image from "next/image";
 
-import { formatCOP, type CatalogProduct } from "@sistema/shared";
+import { formatCOP, type CatalogProduct, type Promotion } from "@sistema/shared";
 
 import { categoryImage } from "@/lib/category-images";
 
 type Props = {
   product: CatalogProduct;
+  /** La promoción que corre AHORA para este producto, si alguna. La elige
+   *  `MenuApp` con la misma función que usa el servidor al cobrar. */
+  promotion: Promotion | null;
+  /** El precio con esa promoción aplicada. Igual al normal si no hay. */
+  promoPrice: number;
   quantity: number;
   onQuickAdd: () => void;
   onQuickRemove: () => void;
@@ -14,6 +19,8 @@ type Props = {
 
 export function ProductCard({
   product,
+  promotion,
+  promoPrice,
   quantity,
   onQuickAdd,
   onQuickRemove,
@@ -21,6 +28,7 @@ export function ProductCard({
 }: Props) {
   const hasOptions = product.optionGroups.length > 0;
   const inCart = quantity > 0;
+  const discounted = promotion !== null && promoPrice < product.price;
 
   return (
     <article
@@ -63,13 +71,30 @@ export function ProductCard({
           <span className="absolute left-2 top-2 rounded-[4px] border border-border bg-background/80 px-2 py-0.5 text-[0.7rem] font-medium text-muted-foreground backdrop-blur-sm">
             Agotado
           </span>
+        ) : promotion ? (
+          // Corto a propósito: el nombre completo ("Precio especial $5.000")
+          // no cabe sobre una miniatura y el precio ya está al lado.
+          <span className="absolute left-2 top-2 rounded-[4px] bg-ember px-2 py-0.5 text-[0.7rem] font-semibold text-background">
+            {promotion.kind === "2x1"
+              ? "2x1"
+              : promotion.kind === "percent"
+                ? `−${promotion.value}%`
+                : "Oferta"}
+          </span>
         ) : null}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col sm:px-4 sm:pt-3">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="display-item min-w-0 text-flour">{product.name}</h3>
-          <span className="display-price shrink-0 text-ember">{formatCOP(product.price)}</span>
+          <span className="flex shrink-0 items-baseline gap-2">
+            {discounted ? (
+              <span className="tnum text-sm text-muted-foreground line-through">
+                {formatCOP(product.price)}
+              </span>
+            ) : null}
+            <span className="display-price text-ember">{formatCOP(discounted ? promoPrice : product.price)}</span>
+          </span>
         </div>
 
         <p className="mt-2 max-w-[54ch] text-sm leading-relaxed text-muted-foreground">
