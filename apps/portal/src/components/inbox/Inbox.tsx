@@ -160,8 +160,15 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
       {selected ? (
         <>
           {/* En el celular el chat tapa la barra inferior: el cuadro de
-              escribir queda abajo, donde está el pulgar. */}
-          <div className="fixed inset-0 z-40 flex md:static md:z-auto md:min-w-0 md:flex-1">
+              escribir queda abajo, donde está el pulgar.
+
+              `z-50` no es decorativo: la barra inferior es `z-40` y se pinta
+              DESPUÉS en el documento, así que con el mismo z quedaba encima y
+              le comía los últimos 4 rem al chat — justo el composer.
+              `h-dvh` en vez del alto del `inset-0`: en el celular la barra de
+              direcciones del navegador se cuenta dentro de ese alto y el
+              final del chat quedaba por debajo del borde visible. */}
+          <div className="fixed inset-0 z-50 flex h-dvh md:static md:z-auto md:h-auto md:min-w-0 md:flex-1">
             <Thread conversation={selected} onBack={() => setSelectedId(null)} />
           </div>
           <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line bg-surface px-5 py-8 2xl:block">

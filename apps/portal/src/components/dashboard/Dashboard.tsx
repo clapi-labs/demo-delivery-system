@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useState, type ComponentType, type ReactNode } from "react";
+import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import { formatCOP } from "@sistema/shared";
 
@@ -39,6 +39,7 @@ import {
   type ActiveStatus,
   type PortalOrder,
 } from "@/lib/orders";
+import { useMedia } from "@/lib/use-media";
 import { useNow } from "@/lib/use-now";
 
 export type BusinessHours = { name: string; opensAt: number; closesAt: number; timezone: string };
@@ -156,7 +157,9 @@ function Kpi({
           <Icon className="h-4 w-4" />
         </span>
       </div>
-      <p className="mt-1 text-2xl font-semibold tracking-title sm:text-3xl">{value}</p>
+      {/* En dos columnas de celular, una cifra de siete dígitos a `text-2xl`
+          se sale de la tarjeta. Baja un paso y solo crece desde `sm`. */}
+      <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-title sm:text-3xl">{value}</p>
       {trend}
     </div>
   );
@@ -167,18 +170,45 @@ function Kpi({
 type HourBucket = { hour: number; count: number; sales: number };
 
 /** Pedidos por hora de hoy: una sola serie, columnas finas, detalle al pasar. */
-function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentHour: number | null }) {
+function HourlyChart({ buckets: raw, currentHour }: { buckets: HourBucket[]; currentHour: number | null }) {
   const [hovered, setHovered] = useState<number | null>(null);
+  // En el celular no caben 24 columnas: se juntan de dos en dos y cada barra
+  // pasa a ser un bloque de dos horas. La tabla `sr-only` sigue con el detalle
+  // hora por hora, así que no se pierde información.
+  const narrow = useMedia("(max-width: 640px)");
+  const buckets = useMemo(() => {
+    if (!narrow || raw.length <= 12) return raw;
+    const pairs: HourBucket[] = [];
+    for (let i = 0; i < raw.length; i += 2) {
+      const a = raw[i];
+      const b = raw[i + 1];
+      pairs.push({
+        hour: a.hour,
+        count: a.count + (b?.count ?? 0),
+        sales: a.sales + (b?.sales ?? 0),
+      });
+    }
+    return pairs;
+  }, [raw, narrow]);
+  // La hora actual puede caer en la segunda mitad de un bloque.
+  const activeHour =
+    currentHour === null ? null : buckets.find((b) => currentHour === b.hour || currentHour === b.hour + 1)?.hour ?? null;
+  const grouped = buckets !== raw;
+  const blockLabel = (h: number) => (grouped ? `${hourLabel(h)} a ${hourLabel((h + 2) % 24)}` : hourLabel(h));
+
   const max = Math.max(4, ...buckets.map((b) => b.count));
-  // Con horario 24/7 son 24 columnas: etiquetar una de cada dos las encima.
-  const labelStep = buckets.length > 14 ? 4 : 2;
+  const labelStep = buckets.length > 14 ? 4 : buckets.length > 8 ? 3 : 2;
+  // Se rotula una columna de cada `labelStep`, contando DESDE la hora actual:
+  // así la de ahora siempre lleva rótulo y ninguno cae pegado a otro.
+  const anchor = activeHour === null ? 0 : Math.max(0, buckets.findIndex((b) => b.hour === activeHour));
+  const labelled = (i: number) => (((i - anchor) % labelStep) + labelStep) % labelStep === 0;
   const step = max <= 4 ? 1 : max <= 10 ? 2 : 5;
   const top = Math.ceil(max / step) * step;
   const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step).reverse();
 
   return (
     <figure className="relative">
-      <div className="relative flex h-48 gap-1.5 pl-7 sm:gap-2" onMouseLeave={() => setHovered(null)}>
+      <div className="relative flex h-48 gap-1 pl-7 sm:gap-2" onMouseLeave={() => setHovered(null)}>
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
           {ticks.map((t) => (
             <div key={t} className="flex items-center gap-2">
@@ -197,7 +227,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
               onClick={() => setHovered((h) => (h === b.hour ? null : b.hour))}
               onFocus={() => setHovered(b.hour)}
               onBlur={() => setHovered(null)}
-              className="relative flex flex-1 cursor-default items-end justify-center outline-none"
+              className="relative flex min-w-0 flex-1 cursor-default items-end justify-center outline-none"
             >
               <motion.div
                 initial={{ scaleY: 0 }}
@@ -205,7 +235,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
                 transition={{ delay: i * 0.03, type: "spring", stiffness: 260, damping: 30 }}
                 style={{ height: `${(b.count / top) * 100}%`, minHeight: b.count ? 4 : 0, originY: 1 }}
                 className={`w-full max-w-7 rounded-t-lg transition-opacity duration-200 ease-in-out ${
-                  b.hour === currentHour ? "bg-brand" : "bg-brand/60"
+                  b.hour === activeHour ? "bg-brand" : "bg-brand/60"
                 } ${dimmed ? "opacity-35" : "opacity-100"}`}
               />
               {hovered === b.hour ? (
@@ -216,7 +246,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
                     i < 2 ? "left-0" : i > buckets.length - 3 ? "right-0" : "left-1/2 -translate-x-1/2"
                   }`}
                 >
-                  <p className="font-semibold">{hourLabel(b.hour)}</p>
+                  <p className="font-semibold">{blockLabel(b.hour)}</p>
                   <p className="mt-0.5 text-zinc-300">
                     {b.count} {b.count === 1 ? "pedido" : "pedidos"} – {formatCOP(b.sales)}
                   </p>
@@ -226,22 +256,26 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
           );
         })}
       </div>
-      <div className="mt-2 flex gap-1.5 pl-7 sm:gap-2" aria-hidden="true">
+      {/* `min-w-0` en cada rótulo: con `flex-1` a secas, el ancho del texto es
+          el mínimo del elemento y 24 rótulos estiraban la tarjeta más allá de
+          la pantalla. Ahora el texto se sale de su casilla —centrado, sin
+          recortarse— y la fila mide lo que mide la gráfica. */}
+      <div className="mt-2 flex gap-1 pl-7 sm:gap-2" aria-hidden="true">
         {buckets.map(({ hour }, i) => (
           <span
             key={hour}
-            className={`flex-1 text-center text-[11px] tabular-nums ${
-              hour === currentHour ? "font-semibold text-ink" : "text-ink-3"
+            className={`min-w-0 flex-1 whitespace-nowrap text-center text-[11px] tabular-nums ${
+              hour === activeHour ? "font-semibold text-ink" : "text-ink-3"
             }`}
           >
-            {i % labelStep === 0 || hour === currentHour ? hourLabel(hour).replace(" ", "") : ""}
+            {labelled(i) ? hourLabel(hour).replace(" ", "") : ""}
           </span>
         ))}
       </div>
       <table className="sr-only">
         <caption>Pedidos por hora, hoy</caption>
         <tbody>
-          {buckets.map((b) => (
+          {raw.map((b) => (
             <tr key={b.hour}>
               <th scope="row">{hourLabel(b.hour)}</th>
               <td>{b.count} pedidos</td>
@@ -431,7 +465,7 @@ export function Dashboard({ business }: { business: BusinessHours }) {
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <section className="card p-4 sm:p-5 lg:col-span-3" aria-labelledby="chart-title">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="chart-title" className="font-semibold tracking-title">

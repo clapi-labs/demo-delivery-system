@@ -273,10 +273,15 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
           <>
             {/* Celular y tablet vertical: las tres columnas apiladas, en el
                 mismo orden que en escritorio (lo que más urge, arriba). En
-                tablet, cada sección en dos columnas. */}
+                tablet, cada sección en dos columnas.
+
+                `grid-cols-1` explícito, no `grid` a secas: la columna
+                implícita se dimensiona `auto`, o sea al ancho MÍNIMO de la
+                tarjeta más ancha, y se desborda de la pantalla sin avisar.
+                `grid-cols-1` es `minmax(0, 1fr)`, que sí obliga a caber. */}
             <div className="lg:hidden">
               {loading ? (
-                <div className="grid gap-3 md:grid-cols-2">{skeletonCards(4)}</div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{skeletonCards(4)}</div>
               ) : groups.active.length === 0 ? (
                 <EmptyState icon={<OrdersIcon />} title={q ? "Nada coincide con la búsqueda" : "No hay pedidos en curso"}>
                   Cuando un cliente envíe su pedido desde el menú, aparece aquí solo.
@@ -304,7 +309,7 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
                             {EMPTY_TEXT[status]}
                           </p>
                         ) : (
-                          <AnimatedList className="grid items-start gap-3 md:grid-cols-2">
+                          <AnimatedList className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                             {list.map((o) => ticket(o))}
                           </AnimatedList>
                         )}
@@ -361,20 +366,20 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
           </>
         ) : tab === "delivered" ? (
           loading ? (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{skeletonCards(3)}</div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{skeletonCards(3)}</div>
           ) : groups.delivered.length + groups.cancelled.length === 0 ? (
             <EmptyState icon={<OrdersIcon />} title={q ? "Nada coincide con la búsqueda" : "Todavía no hay pedidos entregados"}>
               Aquí quedan los pedidos entregados y los cancelados.
             </EmptyState>
           ) : (
             <div className="space-y-6">
-              <AnimatedList className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <AnimatedList className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {groups.delivered.map((o) => ticket(o))}
               </AnimatedList>
               {groups.cancelled.length > 0 ? (
                 <section>
                   <h2 className="mb-3 text-sm font-semibold text-ink-2">Cancelados ({groups.cancelled.length})</h2>
-                  <AnimatedList className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <AnimatedList className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {groups.cancelled.map((o) => ticket(o))}
                   </AnimatedList>
                 </section>
@@ -382,11 +387,11 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
             </div>
           )
         ) : loading ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{skeletonCards(3)}</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{skeletonCards(3)}</div>
         ) : groups[tab].length === 0 ? (
           <EmptyState icon={<OrdersIcon />} title={q ? "Nada coincide con la búsqueda" : EMPTY_TEXT[tab]} />
         ) : (
-          <AnimatedList className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <AnimatedList className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
             {groups[tab].map((o) => ticket(o))}
           </AnimatedList>
         )}

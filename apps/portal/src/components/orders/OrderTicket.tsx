@@ -236,7 +236,10 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
           {order.address && !expanded ? (
             <p className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-2">
               <PinIcon className="h-3.5 w-3.5 shrink-0 text-ink-3" />
-              <span className="truncate">{order.address}</span>
+              {/* `min-w-0` es lo que deja que `truncate` recorte de verdad:
+                  sin él, la dirección en una línea es el ancho mínimo del
+                  párrafo y estiraba la tarjeta más allá de la pantalla. */}
+              <span className="min-w-0 truncate">{order.address}</span>
             </p>
           ) : null}
         </div>
@@ -361,14 +364,14 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
           <button
             onClick={toggle}
             aria-label={expanded ? "Ocultar detalle" : "Ver detalle"}
-            className="ease-ui rounded-full p-2.5 text-ink-3 hover:bg-sunken hover:text-ink can-hover:p-2"
+            className="ease-ui shrink-0 rounded-full p-2.5 text-ink-3 hover:bg-sunken hover:text-ink can-hover:p-2"
           >
             <ChevronDownIcon className={`ease-ui h-5 w-5 ${expanded ? "rotate-180" : ""}`} />
           </button>
           {next && active ? (
             <button
               onClick={() => onAdvance(order)}
-              className="ease-ui inline-flex h-11 items-center gap-2 rounded-lg bg-ink pl-3.5 pr-3 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.97] can-hover:h-10"
+              className="ease-ui inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-ink pl-3.5 pr-3 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.97] can-hover:h-10"
             >
               {ADVANCE_LABEL[order.status as keyof typeof ADVANCE_LABEL]}
               <span className={`h-2 w-2 rounded-full ${nextTone?.dot}`} aria-hidden="true" />
