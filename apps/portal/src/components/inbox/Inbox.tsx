@@ -70,7 +70,7 @@ export function Inbox({ initialPhone }: { initialPhone?: string }) {
   return (
     <div className="flex h-full">
       <aside
-        className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-line bg-surface md:w-72 md:shrink-0 md:border-r lg:w-80 xl:w-96`}
+        className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-line bg-surface md:w-80 md:shrink-0 md:border-r xl:w-96`}
       >
         <div className="space-y-3 px-4 pb-3 pt-5 lg:pt-8">
           <div>

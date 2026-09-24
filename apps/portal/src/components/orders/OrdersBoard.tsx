@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { normalize } from "@sistema/shared";
 
@@ -74,9 +74,9 @@ function Animated({ id, children }: { id: number; children: ReactNode }) {
  * El tablero de pedidos (RF-28, RF-29).
  *
  * "Todos" es el tablero de la cocina: en pantalla grande tres columnas de
- * izquierda a derecha, en el celular una sola lista con los más viejos
- * arriba. Cada estado tiene además su pestaña con contador, y "Entregados"
- * guarda lo cerrado (entregados y cancelados).
+ * izquierda a derecha; en celular y tablet vertical, las mismas tres apiladas,
+ * con los más viejos arriba en cada una. Cada estado tiene además su pestaña
+ * con contador, y "Entregados" guarda lo cerrado (entregados y cancelados).
  */
 export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initialTab?: OrdersTab; initialQuery?: string }) {
   const { orders, loading, error, freshIds, advance, setStatus } = useOrders();
@@ -100,6 +100,34 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
     }
   }, []);
 
+  // --- Pestañas que se desplazan -------------------------------------------------
+
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  const updateEdges = () => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 4;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  };
+
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    // Se recalcula al girar la pantalla y cuando cambian los contadores (que
+    // cambian el ancho de las pestañas). El observador avisa también al empezar.
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+
+  const tabsMask = `linear-gradient(to right, ${edges.left ? "transparent, black 2.5rem" : "black, black"}, ${
+    edges.right ? "black calc(100% - 2.5rem), transparent" : "black"
+  })`;
+
   const dismissHint = () => {
     setShowHint(false);
     try {
@@ -114,6 +142,13 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
   const focusOrder = focusCode ? orders.find((o) => o.code === focusCode) : undefined;
   const focusClosed = focusOrder?.status === "delivered" || focusOrder?.status === "cancelled";
   const tab: OrdersTab = chosenTab ?? (focusClosed ? "delivered" : initialTab);
+
+  // La pestaña elegida (o la que abrió un enlace, p. ej. "Entregados") nunca
+  // queda escondida detrás del borde.
+  useEffect(() => {
+    const el = tabsRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, [tab]);
 
   const groups = useMemo(() => {
     const visible = orders.filter((o) => matches(o, q));
@@ -139,13 +174,12 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
     if (order && order.status !== status) setStatus(order, status);
   };
 
-  const ticket = (order: PortalOrder, showStatus = false) => (
+  const ticket = (order: PortalOrder) => (
     <Animated key={order.id} id={order.id}>
       <OrderTicket
         order={order}
         now={now}
         fresh={freshIds.has(order.id)}
-        showStatus={showStatus}
         defaultExpanded={order.code === focusCode}
         onAdvance={advance}
         onSetStatus={setStatus}
@@ -179,7 +213,7 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
               value={query}
               onChange={setQuery}
               placeholder="Buscar pedido, cliente o producto"
-              className="hidden w-72 lg:block"
+              className="hidden w-80 lg:block"
             />
             <button
               onClick={() => setSearchOpen((v) => !v)}
@@ -206,7 +240,9 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
       </AnimatePresence>
 
       <div className="sticky top-0 z-10 -mx-4 mt-4 bg-canvas/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mt-6 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-        <div className="no-scrollbar overflow-x-auto">
+        {/* En el celular no caben las cinco pestañas: se desplazan de lado, y
+            el borde que tiene más pestañas escondidas se desvanece. */}
+        <div ref={tabsRef} onScroll={updateEdges} style={{ maskImage: tabsMask, WebkitMaskImage: tabsMask }} className="no-scrollbar overflow-x-auto">
           <Segmented<OrdersTab>
             value={tab}
             onChange={setTab}
@@ -223,7 +259,7 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
       </div>
 
       {showHint && tab !== "delivered" ? (
-        <div className="card mt-2 flex items-center gap-3 px-3 py-2.5 text-sm text-ink-2 lg:hidden">
+        <div className="card mt-2 flex items-center gap-3 px-3 py-2.5 text-sm text-ink-2 can-hover:hidden">
           <SwipeIcon className="h-5 w-5 shrink-0 text-brand" />
           <p className="flex-1">Desliza un pedido hacia la derecha para pasarlo al siguiente estado.</p>
           <button onClick={dismissHint} aria-label="Entendido" className="ease-ui rounded-full p-1.5 hover:bg-sunken">
@@ -235,7 +271,9 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
       <div className="mt-4 lg:mt-5">
         {tab === "all" ? (
           <>
-            {/* Celular: una sola lista, los más viejos arriba. */}
+            {/* Celular y tablet vertical: las tres columnas apiladas, en el
+                mismo orden que en escritorio (lo que más urge, arriba). En
+                tablet, cada sección en dos columnas. */}
             <div className="lg:hidden">
               {loading ? (
                 <div className="grid gap-3 md:grid-cols-2">{skeletonCards(4)}</div>
@@ -244,9 +282,36 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
                   Cuando un cliente envíe su pedido desde el menú, aparece aquí solo.
                 </EmptyState>
               ) : (
-                <AnimatedList className="grid items-start gap-3 md:grid-cols-2">
-                  {groups.active.map((o) => ticket(o, true))}
-                </AnimatedList>
+                <div className="space-y-6">
+                  {ACTIVE_STATUSES.map((status) => {
+                    const list = groups[status];
+                    // Buscando, las secciones vacías solo estorban.
+                    if (q && list.length === 0) return null;
+                    const tone = STATUS_TONE[status];
+                    return (
+                      <section key={status} aria-label={ORDER_COLUMN_LABEL[status]}>
+                        <header className="mb-2.5 flex items-center gap-2 px-1">
+                          <span className={`h-2.5 w-2.5 rounded-full ${tone.dot}`} />
+                          <h2 className="text-sm font-semibold tracking-title">{ORDER_COLUMN_LABEL[status]}</h2>
+                          <span
+                            className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums ${tone.soft} ${tone.ink}`}
+                          >
+                            {list.length}
+                          </span>
+                        </header>
+                        {list.length === 0 ? (
+                          <p className="rounded-xl border border-dashed border-line-strong px-4 py-4 text-center text-sm text-ink-3">
+                            {EMPTY_TEXT[status]}
+                          </p>
+                        ) : (
+                          <AnimatedList className="grid items-start gap-3 md:grid-cols-2">
+                            {list.map((o) => ticket(o))}
+                          </AnimatedList>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
               )}
             </div>
 

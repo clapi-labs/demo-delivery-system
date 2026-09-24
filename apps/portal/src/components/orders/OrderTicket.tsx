@@ -276,7 +276,7 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
                       </a>
                       <Link
                         href={`/conversaciones?tel=${order.phone}`}
-                        className="ease-ui ml-auto inline-flex items-center gap-1 rounded-full bg-whatsapp-soft px-2.5 py-1 text-xs font-medium text-whatsapp-ink hover:brightness-95"
+                        className="ease-ui ml-auto inline-flex h-9 items-center gap-1 rounded-full bg-whatsapp-soft px-3 text-xs font-medium text-whatsapp-ink hover:brightness-95 can-hover:h-7 can-hover:px-2.5"
                       >
                         <ChatIcon className="h-3.5 w-3.5" />
                         Ver chat
@@ -306,7 +306,7 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
                           key={s}
                           onClick={() => onSetStatus(order, s)}
                           disabled={current}
-                          className={`ease-ui inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                          className={`ease-ui inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium can-hover:h-7 ${
                             current
                               ? `${STATUS_TONE[s].soft} ${STATUS_TONE[s].ink}`
                               : "bg-surface text-ink-2 shadow-sm ring-1 ring-black/10 hover:text-ink"
@@ -326,13 +326,13 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
                       <p className="flex-1 font-medium text-danger-ink">¿Cancelar el pedido #{order.code}?</p>
                       <button
                         onClick={() => setConfirmCancel(false)}
-                        className="ease-ui rounded-md px-2.5 py-1.5 font-medium text-ink-2 hover:bg-surface"
+                        className="ease-ui h-10 rounded-md px-3 font-medium text-ink-2 hover:bg-surface can-hover:h-8"
                       >
                         No
                       </button>
                       <button
                         onClick={() => onSetStatus(order, "cancelled")}
-                        className="ease-ui rounded-md bg-danger px-3 py-1.5 font-medium text-white hover:brightness-95"
+                        className="ease-ui h-10 rounded-md bg-danger px-3 font-medium text-white hover:brightness-95 can-hover:h-8"
                       >
                         Sí, cancelar
                       </button>
@@ -340,7 +340,7 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
                   ) : (
                     <button
                       onClick={() => setConfirmCancel(true)}
-                      className="text-sm font-medium text-danger-ink underline-offset-2 hover:underline"
+                      className="-my-2 py-2 text-sm font-medium text-danger-ink underline-offset-2 hover:underline"
                     >
                       Cancelar pedido
                     </button>
@@ -361,14 +361,14 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
           <button
             onClick={toggle}
             aria-label={expanded ? "Ocultar detalle" : "Ver detalle"}
-            className="ease-ui rounded-full p-2 text-ink-3 hover:bg-sunken hover:text-ink"
+            className="ease-ui rounded-full p-2.5 text-ink-3 hover:bg-sunken hover:text-ink can-hover:p-2"
           >
             <ChevronDownIcon className={`ease-ui h-5 w-5 ${expanded ? "rotate-180" : ""}`} />
           </button>
           {next && active ? (
             <button
               onClick={() => onAdvance(order)}
-              className="ease-ui inline-flex h-10 items-center gap-2 rounded-lg bg-ink pl-3.5 pr-3 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.97]"
+              className="ease-ui inline-flex h-11 items-center gap-2 rounded-lg bg-ink pl-3.5 pr-3 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 active:scale-[0.97] can-hover:h-10"
             >
               {ADVANCE_LABEL[order.status as keyof typeof ADVANCE_LABEL]}
               <span className={`h-2 w-2 rounded-full ${nextTone?.dot}`} aria-hidden="true" />

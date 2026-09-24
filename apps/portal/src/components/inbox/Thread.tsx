@@ -300,7 +300,7 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
           </span>
         </button>
 
-        <div className="hidden sm:block">
+        <div className="hidden lg:block">
           <ModeChip paused={conversation.botPaused} />
         </div>
 
@@ -310,8 +310,8 @@ export function Thread({ conversation, onBack }: { conversation: InboxConversati
             className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-semibold transition-colors hover:border-ink-3"
           >
             <BotIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Devolver al bot</span>
-            <span className="sm:hidden">Al bot</span>
+            <span className="hidden lg:inline">Devolver al bot</span>
+            <span className="lg:hidden">Al bot</span>
           </button>
         ) : (
           <button

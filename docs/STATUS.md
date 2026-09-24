@@ -354,8 +354,9 @@ trabajar en una rama aparte, sin tocar `main`.
   del menú usan símbolos (`components/menu/MenuSymbol.tsx`).
 - **Tres tamaños.** Celular (< 768 px): barra de navegación abajo con
   contadores, hojas que suben desde abajo, chat a pantalla completa. Tablet
-  (768–1279 px): riel compacto de íconos, pedidos en dos columnas (tres desde
-  1024 px), hojas laterales. Escritorio (≥ 1280 px): riel completo con el
+  (768–1279 px): riel compacto de íconos, pedidos en dos columnas por estado
+  (tablero de tres columnas desde 1024 px), hojas laterales; la lista de
+  Conversaciones pasa a 320 px para que quepan sus pestañas. Escritorio (≥ 1280 px): riel completo con el
   widget plegable del asistente; el panel del cliente en Conversaciones solo
   desde 1536 px. Lo que aparece "al pasar el cursor" depende de si hay mouse
   (variante `can-hover:`), no del ancho: en una tablet táctil se ve siempre.
@@ -369,8 +370,11 @@ trabajar en una rama aparte, sin tocar `main`.
 - **Pedidos** (`app/pedidos`, `components/orders/OrderTicket.tsx`). Escritorio:
   tres columnas (Nuevos, En preparación, Enviados), los más viejos arriba.
   Arriba, pestañas con contador: Todos, Nuevos, En preparación, Enviados y
-  Entregados (con los cancelados aparte). En el celular "Todos" es una sola
-  lista. `?estado=` abre una pestaña y `?pedido=CODIGO` abre ese pedido. Avanzar un pedido es
+  Entregados (con los cancelados aparte). En celular y tablet vertical
+  "Todos" apila las mismas tres secciones (Nuevos primero); las pestañas que
+  no caben se desplazan de lado con el borde desvanecido y la elegida siempre
+  queda a la vista. El aviso de "desliza" sale en todo equipo táctil, no por
+  ancho. `?estado=` abre una pestaña y `?pedido=CODIGO` abre ese pedido. Avanzar un pedido es
   **un solo gesto**: el botón de la tarjeta, deslizarla a la derecha (dedo) o
   arrastrarla a otra columna (mouse). Cada cambio muestra "Deshacer" en vez
   de pedir confirmación. Tocar la tarjeta despliega el detalle ahí mismo
