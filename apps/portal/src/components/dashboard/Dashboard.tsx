@@ -357,7 +357,7 @@ export function Dashboard({ business }: { business: BusinessHours }) {
         ) : null}
       </header>
 
-      <section aria-label="Lo que necesita atención" className="grid gap-3 lg:grid-cols-3">
+      <section aria-label="Lo que necesita atención" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {!ready ? (
           [0, 1, 2].map((i) => <Skeleton key={i} className="h-[4.5rem] rounded-xl" />)
         ) : (

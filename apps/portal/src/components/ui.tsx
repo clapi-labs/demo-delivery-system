@@ -126,7 +126,7 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={`ease-ui relative flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-medium ${
+            className={`ease-ui relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-medium ${
               size === "sm" ? "px-2.5 py-1 text-[13px]" : "px-3 py-1.5 text-sm"
             } ${active ? "text-ink" : "text-ink-2 hover:text-ink"}`}
           >

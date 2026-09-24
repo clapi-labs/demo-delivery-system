@@ -197,7 +197,7 @@ export function ProductsView() {
         </button>
         <button
           onClick={() => setEditing(emptyProduct(categoryFilter ?? categories[0]?.id ?? 0))}
-          className={`${buttonPrimary} hidden sm:inline-flex`}
+          className={`${buttonPrimary} max-sm:hidden`}
         >
           <PlusIcon className="h-4 w-4" />
           Producto
