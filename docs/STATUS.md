@@ -8,13 +8,14 @@
 
 ## Dónde estamos
 
-**Fases 0 a 4 verificadas contra Neon; Fase 5 (portal) tiene el frontend
-completo con datos de demostración, sin conectar todavía a la base real.**
-Todo lo determinista, el asesor con modelo (RF-13) y el menú público (RF-20 a
-RF-27) funcionan de punta a punta contra APIs reales — Neon y OpenAI. El
-portal (RF-28, RF-29, RF-32, RF-35, parte de RF-40) es frontend puro por
-decisión explícita del usuario ("demo comercial", "datos ficticios") — el
-mismo patrón que ya se usó con el menú antes de conectarlo.
+**Fases 0 a 4 verificadas contra Neon; Fase 5 (portal) tiene Pedidos y
+Conversaciones conectados de verdad a Neon (lectura y escritura, incluido el
+envío real por WhatsApp desde la bandeja); solo el Menú del portal sigue
+sobre datos de demostración.** Todo lo determinista, el asesor con modelo
+(RF-13) y el menú público (RF-20 a RF-27) funcionan de punta a punta contra
+APIs reales — Neon y OpenAI. Pausar/reactivar el bot y responder desde la
+bandeja (RF-33 a RF-36) se verificaron con un mensaje real entregado por
+WhatsApp, no solo contra la base.
 
 **El bloqueo de Meta se resolvió, pero distinto a lo planeado: número
 compartido con Qanelo por rotación manual, no un número propio (ADR-11).**
@@ -33,7 +34,7 @@ tráfico real de Meta) y conectar el portal a Neon/al outbox.
 | 2 · Canal de WhatsApp | ✅ código, verificado contra Neon; el candado de rotación (ADR-11) también verificado; falta desplegar y coordinar la rotación para la prueba en vivo |
 | 3 · Motor del asistente | ✅ lo determinista y el asesor con modelo (OpenAI real); ⬜ la voz — falta `services/whatsapp/media.ts` + Whisper, y tráfico real de Meta para probarlo |
 | 4 · Menú público | ✅ catálogo, carrito, personalización, envío del pedido y el endpoint interno del bot que lo recibe |
-| 5 · Portal y bandeja | 🟡 rediseñado (rama `portal-redesign`): pedidos conectados a Neon; Conversaciones y Menú con frontend completo sobre datos de demostración, enchufes listos en `apps/portal/src/lib/portal-api.ts`; falta el outbox y `/api/internal/send` |
+| 5 · Portal y bandeja | 🟡 Pedidos y Conversaciones (lectura, pausar/reactivar/responder) conectados a Neon y a `apps/bot`; Menú sigue con datos de demostración; falta el outbox (RF-30/31) |
 | 6 · Despliegue y video | ⬜ Ahora es el siguiente paso obligado: sin URL pública no hay a quién rotarle el webhook |
 
 ---
@@ -421,6 +422,48 @@ Chrome no respondía).
 
 ---
 
+## La bandeja se conectó a Neon y al envío real (2026-09-23/24)
+
+Tres cosas, en la misma sesión:
+
+- **`GET /api/inbox` deja de leer `demo-data.ts`.** `apps/portal/src/db/inbox.ts`
+  lee `conversations`/`messages` directo — un chat por número está
+  garantizado por el esquema (`conversations.phone` es `unique()`), no por
+  lógica nueva.
+- **Se arregló un crash real en producción.** `apps/bot` guardaba en
+  `messages.meta` el `{id,title}[]` interno de los botones (lo que necesita
+  la API de WhatsApp), no los títulos que pinta `Thread.tsx`. Un objeto crudo
+  como hijo de React tira el error #31 y deja la pantalla en blanco — así se
+  descubrió, abriendo Conversaciones. `bot/types.ts` ahora expone
+  `inboxMeta(reply)` para que `orchestrator.ts` y `menu-order/route.ts`
+  guarden ya la forma que la interfaz necesita, y `apps/portal/src/db/inbox.ts`
+  sanea lo que ya estaba mal guardado, para no tener que tocar la base a mano.
+- **RF-33 a RF-36 (pausar, reactivar, responder) ya son reales,** no solo el
+  frontend:
+  - "Intervenir"/"Devolver al bot" → `POST /api/inbox` (`action: "pause"`
+    o `"resume"`) escribe `conversations.bot_paused` directo — no hay envío
+    a WhatsApp de por medio, así que RN-05 no aplica acá — y deja un mensaje
+    `kind: "system"` real en el hilo (para que quien mire después sepa qué
+    pasó, no solo quien hizo el clic).
+  - "Responder" → `POST /api/inbox` (`action: "send"`) resuelve el teléfono
+    y reenvía la llamada, con el secreto compartido, a
+    `POST /api/internal/send` en `apps/bot` — el único camino de salida
+    (RN-05) —, que pausa el bot, llama a `sendText()` (ya comprobaba
+    `BOT_ACTIVE` y la ventana de 24 h) y registra el mensaje con
+    `role: "agent"`.
+  - **Verificado con un envío real:** un mensaje mandado desde la bandeja del
+    portal en local llegó al WhatsApp del número de prueba del usuario,
+    confirmado por él mismo.
+- Variables nuevas en el portal (antes solo tenía `DATABASE_URL`): `BOT_URL`
+  e `INTERNAL_SECRET` en Vercel (Production y Preview) — el mismo valor que
+  ya usa `demo-delivery-system-bot`.
+
+**Lo que sigue sin conectar, a propósito:** el outbox (RF-30/31, avisos de
+cambio de estado de un pedido) y el Menú del portal (RF sobre `products`,
+`categories`, promociones — estas últimas sin tabla todavía).
+
+---
+
 ## Decisiones que conviene no reabrir
 
 Todas en `DECISIONS.md`. Las que más cuesta corregir después:
@@ -530,13 +573,12 @@ Todas en `DECISIONS.md`. Las que más cuesta corregir después:
 
 ## Notas para la próxima sesión
 
-- **Portal (rama `portal-redesign`):** los pedidos ya leen y escriben Neon;
-  conversaciones y menú corren sobre `apps/portal/src/lib/demo-data.ts`. Para
-  conectarlos, llenar las funciones `TODO(backend)` de
-  `apps/portal/src/lib/portal-api.ts` (`getCatalog()` ya existe; la bandeja
-  necesita queries nuevas siguiendo `apps/bot/src/db/queries/`), el outbox
-  (RF-30/31) y `POST /api/internal/send` para que responder desde la bandeja
-  salga por el bot (RF-33, RN-05). Las pantallas no deberían cambiar.
+- **Portal:** pedidos y conversaciones (lectura, pausar/reactivar/responder)
+  ya son reales. Solo falta el Menú del portal — llenar las funciones
+  `TODO(backend)` de `apps/portal/src/lib/portal-api.ts` (`getCatalog()` ya
+  existe) — y el outbox (RF-30/31), que es aparte: los avisos de cambio de
+  estado de un pedido todavía no le llegan al cliente. Las pantallas no
+  deberían cambiar.
 - **Lo único que falta de la Fase 3 es la voz (RF-14).** Mismo patrón de
   enchufe que ya se usó para el asesor: falta `services/whatsapp/media.ts`
   (descarga en dos pasos: `GET /{media-id}` da una URL temporal, se descarga

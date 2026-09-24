@@ -2,11 +2,11 @@
  * El único punto donde el portal habla con el backend.
  *
  * Las pantallas nunca llaman a `fetch` directo: llaman a estas funciones. Hoy
- * los pedidos y la lectura de la bandeja (`fetchConversations`) están
- * conectados de verdad (Neon, `app/api/orders` y `app/api/inbox`); pausar,
- * reactivar, responder y el menú siguen siendo enchufes listos, marcados con
- * `TODO(backend)`, que resuelven en memoria para que la interfaz se pueda
- * usar completa.
+ * los pedidos y toda la bandeja (lectura, pausar, reactivar y responder)
+ * están conectados de verdad (Neon vía `app/api/orders`/`app/api/inbox`, y
+ * responder además sale por `apps/bot`). El menú sigue siendo un enchufe
+ * listo, marcado con `TODO(backend)`, que resuelve en memoria para que la
+ * interfaz se pueda usar completa.
  *
  * Al conectar cada uno, la pantalla no cambia: se reemplaza el cuerpo de la
  * función. Las actualizaciones en pantalla ya son optimistas — si una llamada
@@ -68,9 +68,9 @@ export async function updateOrderStatus(orderId: number, status: OrderStatus): P
   if (!res.ok) throw new Error(`POST /api/orders → ${res.status}`);
 }
 
-// --- Conversaciones (conectado el GET; el resto sigue TODO backend) ---------
+// --- Conversaciones (conectado) ----------------------------------------------
 
-/** Simula la latencia de red, para que los estados de "enviando" se vean. */
+/** Solo para DEMO_MODE: simula la latencia de red. */
 const later = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -86,41 +86,52 @@ export async function fetchConversations(): Promise<InboxConversation[]> {
   return data.conversations;
 }
 
-/**
- * TODO(backend): pausar el bot en esta conversación
- * (`conversations.bot_paused = true`). Abrir un chat NO lo pausa; esto sí.
- */
+async function postInbox(body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string; message?: InboxMessage }> {
+  const res = await fetch("/api/inbox", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; message?: InboxMessage }
+    | null;
+  if (!res.ok || !data?.ok) throw new Error(data?.error ?? `POST /api/inbox → ${res.status}`);
+  return data;
+}
+
+/** Pausar el bot en esta conversación. Abrir un chat NO lo pausa; esto sí. */
 export async function pauseBot(conversationId: number): Promise<void> {
-  void conversationId;
-  await later();
+  if (DEMO_MODE) {
+    await later();
+    return;
+  }
+  await postInbox({ action: "pause", conversationId });
 }
 
-/**
- * TODO(backend): devolverle la conversación al bot
- * (`bot_paused = false`, `escalation_reason = null`).
- */
+/** Devolverle la conversación al bot. */
 export async function resumeBot(conversationId: number): Promise<void> {
-  void conversationId;
-  await later();
+  if (DEMO_MODE) {
+    await later();
+    return;
+  }
+  await postInbox({ action: "resume", conversationId });
 }
 
 /**
- * TODO(backend): enviar un mensaje del equipo al cliente.
- *
- * Tiene que salir por `apps/bot` (`POST /api/internal/send`, RN-05: un solo
- * camino de salida), que comprueba la ventana de 24 h y registra el mensaje
- * con `role = "agent"`. Devuelve el mensaje tal como quedó guardado.
+ * Un mensaje del equipo al cliente. Sale por `apps/bot`
+ * (`POST /api/internal/send`, RN-05: un solo camino de salida), que
+ * comprueba `BOT_ACTIVE` y la ventana de 24 h antes de intentar nada — si
+ * cualquiera falla, esto lanza y el provider revierte lo optimista.
  */
 export async function sendAgentMessage(conversationId: number, text: string): Promise<InboxMessage> {
-  void conversationId;
-  await later(400);
-  return {
-    id: `local-${Date.now()}`,
-    role: "agent",
-    kind: "text",
-    text,
-    createdAt: new Date().toISOString(),
-  };
+  if (DEMO_MODE) {
+    await later(400);
+    return { id: `local-${Date.now()}`, role: "agent", kind: "text", text, createdAt: new Date().toISOString() };
+  }
+
+  const data = await postInbox({ action: "send", conversationId, text });
+  if (!data.message) throw new Error("send_failed");
+  return data.message;
 }
 
 /** TODO(backend): marcar como leída (hoy no hay columna para esto). */

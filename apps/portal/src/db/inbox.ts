@@ -1,4 +1,4 @@
-import { asc, desc, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 
 import { conversations, db, messages } from "@sistema/shared/db";
 
@@ -22,7 +22,7 @@ import type { InboxConversation, InboxMessage } from "@/lib/inbox";
  * base, para que el resto del portal pueda confiar en el tipo sin volver
  * a comprobarlo.
  */
-function sanitizeMeta(raw: unknown): InboxMessage["meta"] {
+export function sanitizeMeta(raw: unknown): InboxMessage["meta"] {
   if (!raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
 
@@ -95,4 +95,37 @@ export async function getInboxConversations(): Promise<InboxConversation[]> {
     unread: 0,
     messages: byConversation.get(c.id) ?? [],
   }));
+}
+
+export async function getConversationPhone(conversationId: number): Promise<string | null> {
+  const [row] = await db
+    .select({ phone: conversations.phone })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+  return row?.phone ?? null;
+}
+
+/**
+ * "Intervenir" y "Devolver al bot" (RF-33, RF-34). No hay envío a WhatsApp
+ * acá — es solo el control del asistente — así que no hace falta pasar por
+ * `apps/bot` (RN-05 rige lo que sale al cliente, no esto).
+ */
+export async function setConversationPaused(conversationId: number, paused: boolean): Promise<void> {
+  await db
+    .update(conversations)
+    .set({ botPaused: paused, escalationReason: null })
+    .where(eq(conversations.id, conversationId));
+}
+
+/**
+ * Dice en el propio hilo que alguien pausó o devolvió el bot, para quien
+ * mire la conversación después sepa qué pasó — no solo quien hizo el clic.
+ */
+export async function recordSystemMessage(conversationId: number, text: string): Promise<void> {
+  await db.insert(messages).values({ conversationId, role: "agent", kind: "system", text });
+  await db
+    .update(conversations)
+    .set({ lastMessageAt: new Date() })
+    .where(eq(conversations.id, conversationId));
 }
