@@ -1,74 +1,205 @@
 @import "tailwindcss";
 
 /*
- * Portal — SaaS corporativo, sobrio. Fondo claro, sidebar oscuro, acentos en
- * azul. Sin gradientes, sin glow, radios pequeños. Tablas y listas por
- * encima de tarjetas.
+ * Portal — sistema de diseño.
+ *
+ * - Tipografía: Geist, una sola familia. Títulos con tracking -0.02em.
+ * - Neutros zinc: riel zinc-900, contenido zinc-100, tarjetas blancas.
+ * - Acento: el naranja de la marca, hsl(28 91% 54%).
+ * - Colores semánticos con UN solo significado cada uno:
+ *     rojo   = urgente (un pedido sin aceptar hace 10+ min)
+ *     ámbar  = esperando (un cliente espera a una persona)
+ *     verde  = activo / funcionando / entregado
+ *     gris   = inactivo (agotado, cancelado, cerrado)
+ *   Siempre acompañados de texto: el color orienta, nunca es la única señal.
+ * - Elevación: sombra corta + anillo de 1px al 5%. Sin bordes oscuros.
+ * - Radios: rounded-xl (12px) para tarjetas, rounded-full para pastillas.
  */
 
 @theme inline {
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-
   --font-sans: var(--nf-sans), ui-sans-serif, system-ui, sans-serif;
+  --tracking-title: -0.02em;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
   --color-surface: var(--surface);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-sunken: var(--sunken);
+  --color-well: var(--well);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
 
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-muted: var(--sidebar-muted);
-  --color-sidebar-active: var(--sidebar-active);
-  --color-sidebar-border: var(--sidebar-border);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-ink: var(--ok-ink);
+  --color-ok-soft: var(--ok-soft);
+  --color-idle: var(--idle);
+  --color-idle-ink: var(--idle-ink);
+  --color-idle-soft: var(--idle-soft);
+
+  --color-whatsapp: var(--whatsapp);
+  --color-whatsapp-ink: var(--whatsapp-ink);
+  --color-whatsapp-soft: var(--whatsapp-soft);
+
+  --color-rail: var(--rail);
+  --color-rail-fg: var(--rail-fg);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-active: var(--rail-active);
+  --color-rail-line: var(--rail-line);
+
+  /* Estados del pedido: punto (fuerte), fondo (suave), texto (legible). */
+  --color-st-new: var(--st-new);
+  --color-st-new-soft: var(--st-new-soft);
+  --color-st-new-ink: var(--st-new-ink);
+  --color-st-prep: var(--st-prep);
+  --color-st-prep-soft: var(--st-prep-soft);
+  --color-st-prep-ink: var(--st-prep-ink);
+  --color-st-sent: var(--st-sent);
+  --color-st-sent-soft: var(--st-sent-soft);
+  --color-st-sent-ink: var(--st-sent-ink);
+  --color-st-done: var(--ok);
+  --color-st-done-soft: var(--ok-soft);
+  --color-st-done-ink: var(--ok-ink);
+  --color-st-off: var(--idle);
+  --color-st-off-soft: var(--idle-soft);
+  --color-st-off-ink: var(--idle-ink);
 }
 
 :root {
-  --background: oklch(0.99 0.002 260);
-  --foreground: oklch(0.22 0.014 260);
-  --surface: oklch(1 0 0);
-  --muted: oklch(0.96 0.004 260);
-  --muted-foreground: oklch(0.5 0.012 260);
-  --border: oklch(0.9 0.006 260);
+  --canvas: #f4f4f5; /* zinc-100 */
+  --surface: #ffffff;
+  --sunken: #f4f4f5; /* zinc-100, dentro de tarjetas */
+  --well: #e9e9ec; /* entre zinc-100 y zinc-200: columnas sobre el fondo */
+  --ink: #18181b; /* zinc-900 */
+  --ink-2: #52525b; /* zinc-600 */
+  --ink-3: #71717a; /* zinc-500: el gris más claro que aún se lee sobre blanco */
+  --line: #e4e4e7; /* zinc-200 */
+  --line-strong: #d4d4d8; /* zinc-300 */
 
-  --primary: oklch(0.47 0.14 259);
-  --primary-foreground: oklch(0.98 0.005 260);
+  --brand: hsl(28 91% 54%);
+  --brand-ink: hsl(24 88% 38%);
+  --brand-soft: hsl(30 100% 96%);
 
-  --destructive: oklch(0.55 0.16 25);
-  --destructive-foreground: oklch(0.98 0.005 260);
+  --danger: #dc2626;
+  --danger-ink: #b91c1c;
+  --danger-soft: #fef2f2;
+  --warn: #f59e0b;
+  --warn-ink: #b45309;
+  --warn-soft: #fffbeb;
+  --ok: #10b981;
+  --ok-ink: #047857;
+  --ok-soft: #ecfdf5;
+  --idle: #a1a1aa;
+  --idle-ink: #52525b;
+  --idle-soft: #f4f4f5;
 
-  --sidebar: oklch(0.2 0.018 260);
-  --sidebar-foreground: oklch(0.92 0.006 260);
-  --sidebar-muted: oklch(0.65 0.014 260);
-  --sidebar-active: oklch(0.29 0.024 260);
-  --sidebar-border: oklch(0.3 0.02 260);
+  --whatsapp: #22c55e;
+  --whatsapp-ink: #15803d;
+  --whatsapp-soft: #f0fdf4;
+
+  --rail: #18181b; /* zinc-900 */
+  --rail-fg: #f4f4f5;
+  --rail-muted: #a1a1aa;
+  --rail-active: #27272a; /* zinc-800 */
+  --rail-line: #27272a;
+
+  --st-new: hsl(28 91% 54%);
+  --st-new-soft: hsl(30 100% 96%);
+  --st-new-ink: hsl(24 88% 38%);
+  --st-prep: #3b82f6;
+  --st-prep-soft: #eff6ff;
+  --st-prep-ink: #1d4ed8;
+  --st-sent: #8b5cf6;
+  --st-sent-soft: #f5f3ff;
+  --st-sent-ink: #6d28d9;
 }
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: var(--color-line);
+  }
+
+  /* La ventana nunca se desplaza: el único scroll de la página es el de
+   * <main>. Sin esto, cualquier elemento absoluto que se escape del flujo
+   * (p. ej. una tabla sr-only) le agrega altura fantasma al documento y
+   * aparecen dos barras de scroll. */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
 }
 
-@utility eyebrow {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted-foreground);
+/* Dispositivos con mouse (no por ancho de pantalla): lo que aparece "al pasar
+ * el cursor" en una tablet táctil tiene que verse siempre. */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
+
+/* La tarjeta estándar: blanca, rounded-xl, sombra corta y anillo de 1px. */
+@utility card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 1px 2px 0 rgb(0 0 0 / 0.05),
+    0 0 0 1px rgb(0 0 0 / 0.05);
+}
+
+/* Transición estándar de todo lo interactivo. */
+@utility ease-ui {
+  transition-property: all;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* El espacio que ocupa la barra inferior del celular, con el área segura del
+ * iPhone incluida. Un solo lugar para que el contenido y los avisos no queden
+ * tapados por ella. */
+@utility pb-tabbar {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+@utility bottom-tabbar {
+  bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

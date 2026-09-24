@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   // build propio: es lo que permite tocar el esquema y verlo en las tres apps
   // sin recompilar nada a mano.
   transpilePackages: ["@sistema/shared"],
+
+  // La sección se llamaba "Catálogo"; el restaurante la conoce como "Menú".
+  async redirects() {
+    return [{ source: "/catalogo", destination: "/menu", permanent: false }];
+  },
 };
 
 export default nextConfig;

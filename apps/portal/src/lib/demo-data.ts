@@ -1,419 +1,394 @@
 /**
  * Datos de demostración del portal.
  *
- * Fase 5 arranca como frontend puro: esta es la única fuente de datos. Los
- * tipos siguen de cerca el esquema real (`packages/shared/src/db/schema.ts`)
- * a propósito — el día que se conecte a Neon, el cambio es reemplazar estas
- * constantes por las consultas reales, no rediseñar las pantallas.
+ * - **Pedidos:** solo se usan con `NEXT_PUBLIC_PORTAL_DEMO="true"`. Sin esa
+ *   variable, los pedidos salen de Neon de verdad (`GET /api/orders`).
+ * - **Conversaciones y menú:** hoy son la única fuente — el frontend está
+ *   listo y la conexión se hace en `src/lib/portal-api.ts`.
+ *
+ * El menú NO es inventado aquí: sale del mismo catálogo semilla que carga
+ * `npm run db:seed`, para que el portal muestre exactamente los productos que
+ * ve el cliente en el menú público.
+ *
+ * Todas las fechas son relativas al momento de cargar la página, redondeado al
+ * minuto, para que servidor y navegador generen los mismos datos.
  */
 
-/** Los mismos valores que `OrderStatus` en el esquema compartido —
- *  `cancelled` incluido, porque un pedido cancelado existe en la base y el
- *  tablero tiene que poder pintarlo sin reventar. */
-export type OrderStatus = "pending" | "preparing" | "sent" | "delivered" | "cancelled";
+import { CATALOG } from "@sistema/shared/db/seed-data";
 
-/** El camino normal. `cancelled` queda fuera a propósito: es una salida, no
- *  un paso — no se "avanza" hacia ella desde el botón grande. */
-export const ORDER_STATUS_FLOW: OrderStatus[] = ["pending", "preparing", "sent", "delivered"];
+import type { InboxConversation, InboxMessage } from "./inbox";
+import type { MenuCategory, MenuProduct, MenuSymbolName, Promotion } from "./menu";
+import type { OrderStatus, PortalOrder } from "./orders";
 
-export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
-  pending: "Nuevo",
-  preparing: "En preparación",
-  sent: "Enviado",
-  delivered: "Entregado",
-  cancelled: "Cancelado",
-};
+const NOW = Math.floor(Date.now() / 60_000) * 60_000;
+const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
 
-export const ORDER_STATUS_ACTION_LABEL: Record<OrderStatus, string> = {
-  pending: "Marcar en preparación",
-  preparing: "Marcar como enviado",
-  sent: "Marcar como entregado",
-  delivered: "Entregado",
-  cancelled: "Cancelado",
-};
+// --- Pedidos -----------------------------------------------------------------
 
-export function nextOrderStatus(status: OrderStatus): OrderStatus | null {
-  const i = ORDER_STATUS_FLOW.indexOf(status);
-  return i >= 0 && i < ORDER_STATUS_FLOW.length - 1 ? ORDER_STATUS_FLOW[i + 1] : null;
+type Line = [name: string, quantity: number, unitPrice: number, options?: string[]];
+
+function order(
+  id: number,
+  code: string,
+  status: OrderStatus,
+  minutesAgo: number,
+  customerName: string,
+  phone: string,
+  address: string | null,
+  paymentMethod: PortalOrder["paymentMethod"],
+  lines: Line[],
+): PortalOrder {
+  const items = lines.map(([name, quantity, unitPrice, options = []]) => ({
+    name,
+    quantity,
+    unitPrice,
+    lineTotal: unitPrice * quantity,
+    options: options.map((o) => ({ group: "", name: o, priceDelta: 0 })),
+  }));
+  const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
+  return {
+    id,
+    code,
+    status,
+    phone,
+    customerName,
+    address,
+    paymentMethod,
+    subtotal,
+    deliveryFee: 5000,
+    total: subtotal + 5000,
+    createdAt: ago(minutesAgo),
+    items,
+  };
 }
 
-export type PaymentMethod = "efectivo" | "transferencia" | "datafono";
-
-export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
-  efectivo: "Efectivo",
-  transferencia: "Transferencia",
-  datafono: "Datáfono",
-};
-
-/** El pago se confirma por chat DESPUÉS de que entra el pedido, así que un
- *  pedido recién llegado legítimamente no tiene método todavía. */
-export function paymentLabel(method: string | null | undefined) {
-  if (!method) return "Sin confirmar";
-  return PAYMENT_METHOD_LABEL[method as PaymentMethod] ?? method;
+export function demoOrders(): PortalOrder[] {
+  return [
+    order(14, "K3M9QZ", "pending", 2, "Juan Pérez", "573001112233", "Calle 45 #12-30, apto 501", "transferencia", [
+      ["Doble Tocineta", 2, 26000, ["Tres cuartos", "Queso adicional"]],
+      ["Papas con Queso y Tocineta", 1, 13000],
+      ["Gaseosa 400 ml", 2, 4000, ["Cola"]],
+    ]),
+    order(13, "HT7RWA", "pending", 7, "Diego Salazar", "573007778899", "Calle 63 #7-18", "efectivo", [
+      ["Alitas x12", 1, 39500, ["BBQ", "Maracuyá picante"]],
+      ["Limonada Natural", 1, 14000, ["Jarra"]],
+    ]),
+    order(12, "P4NXJC", "pending", 12, "Camila Torres", "573008889900", "Carrera 30 #10-55, casa 4", "datafono", [
+      ["Hamburguesa Vegetariana", 1, 17000, ["Papas rústicas"]],
+      ["Malteada", 1, 12000, ["Fresa"]],
+    ]),
+    order(11, "M2QYTE", "preparing", 16, "Andrea Gómez", "573004445566", "Transversal 21 #45-12", "efectivo", [
+      ["Costilla BBQ", 2, 24000, ["Bien asada"]],
+      ["Aros de Cebolla", 1, 10000],
+    ]),
+    order(10, "W9HKDR", "preparing", 24, "Santiago Vargas", "573009990011", "Calle 19 #4-22", "transferencia", [
+      ["Pollo Broaster (1/4)", 3, 16000],
+      ["Yuca Frita", 2, 9000],
+      ["Gaseosa 400 ml", 3, 4000, ["Naranja"]],
+    ]),
+    order(9, "R6CJTN", "sent", 31, "María López", "573002223344", "Carrera 9 #67-21, torre 2", "datafono", [
+      ["Hamburguesa Clásica", 1, 18000, ["Término medio"]],
+      ["Brownie con Helado", 1, 12000],
+    ]),
+    order(8, "Z3FWQK", "sent", 38, "Laura Ramírez", "573006667788", "Carrera 15 #88-40", "transferencia", [
+      ["Wrap de Pollo Crispy", 2, 17000],
+      ["Limonada de Coco", 2, 9000],
+    ]),
+    order(7, "T7GMHX", "delivered", 64, "Carlos Ruiz", "573003334455", "Calle 80 #14-06", "efectivo", [
+      ["Alitas x6", 1, 22000, ["Búfalo"]],
+      ["Papas a la Francesa", 1, 8000],
+    ]),
+    order(6, "N4DKQA", "delivered", 95, "Felipe Ortiz", "573005556677", "Calle 127 #52-10", "transferencia", [
+      ["Doble Tocineta", 1, 26000],
+      ["Gaseosa 400 ml", 1, 4000, ["Cola sin azúcar"]],
+    ]),
+    order(5, "J9WRTC", "delivered", 130, "Valentina Reyes", "573001110022", "Carrera 50 #26-70", "datafono", [
+      ["Hamburguesa de Pollo", 2, 19000],
+      ["Deditos de Pollo", 1, 15000],
+    ]),
+    order(4, "E2HQMP", "cancelled", 150, "Sebastián Mora", "573112223344", "Calle 34 #20-11", "efectivo", [
+      ["Hamburguesa Clásica", 1, 18000],
+    ]),
+    order(3, "C7KTWN", "delivered", 185, "Daniela Castro", "573123334455", "Avenida 68 #45-90", "transferencia", [
+      ["Alitas x12", 1, 38000, ["Miel mostaza"]],
+      ["Cheesecake de Maracuyá", 2, 13000],
+    ]),
+    order(2, "G3PXRH", "delivered", 240, "Andrés Herrera", "573134445566", "Calle 100 #19-30", "efectivo", [
+      ["Costilla BBQ", 1, 24000],
+      ["Jugo Natural en Agua", 1, 7000],
+    ]),
+    order(1, "A6MJQT", "delivered", 290, "Natalia Rincón", "573145556677", "Carrera 7 #72-15", "datafono", [
+      ["Hamburguesa Clásica", 2, 18000],
+      ["Papas a la Francesa", 2, 8000],
+    ]),
+    ...yesterdayOrders(),
+  ];
 }
 
-/** "Hace 3 min" a partir de una fecha real de la base. */
-export function minutesSince(date: string | Date) {
-  const then = typeof date === "string" ? new Date(date) : date;
-  return Math.max(0, Math.round((Date.now() - then.getTime()) / 60000));
+/** Pedidos de ayer a esta misma franja: con qué comparar las métricas de hoy. */
+function yesterdayOrders(): PortalOrder[] {
+  const DAY = 24 * 60;
+  const rows: [number, number, OrderStatus, string, Line[]][] = [
+    [101, DAY + 20, "delivered", "Mateo Cárdenas", [["Doble Tocineta", 1, 26000]]],
+    [102, DAY + 45, "delivered", "Sofía Beltrán", [["Alitas x6", 1, 22000], ["Gaseosa 400 ml", 1, 4000]]],
+    [103, DAY + 80, "delivered", "Julián Pardo", [["Hamburguesa Clásica", 2, 18000]]],
+    [104, DAY + 110, "cancelled", "Mariana Gil", [["Costilla BBQ", 1, 24000]]],
+    [105, DAY + 150, "delivered", "Tomás Rojas", [["Pollo Broaster (1/4)", 2, 16000], ["Yuca Frita", 1, 9000]]],
+    [106, DAY + 200, "delivered", "Paula Méndez", [["Wrap de Pollo Crispy", 1, 17000], ["Limonada Natural", 1, 6000]]],
+    [107, DAY + 260, "delivered", "Nicolás Vega", [["Hamburguesa de Pollo", 1, 19000]]],
+  ];
+  return rows.map(([id, minutes, status, name, lines]) =>
+    order(id, `Y${id}QK`, status, minutes, name, `5731${id}000000`.slice(0, 12), "Calle 10 #20-30", "efectivo", lines),
+  );
 }
 
-export type OrderItem = { name: string; quantity: number; unitPrice: number };
-
-export type DemoOrder = {
-  id: number;
-  code: string;
-  customerName: string;
-  phone: string;
-  address: string;
-  items: OrderItem[];
-  deliveryFee: number;
-  paymentMethod: PaymentMethod;
-  status: OrderStatus;
-  minutesAgo: number;
-};
-
-function subtotalOf(items: OrderItem[]) {
-  return items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+/** El pedido que "entra solo" en modo demo, para ver el aviso en vivo. */
+export function demoIncomingOrder(): PortalOrder {
+  const fresh = order(15, "Q7RMWT", "pending", 0, "Isabela Duarte", "573156667788", "Calle 72 #11-40, apto 302", "transferencia", [
+    ["Hamburguesa Clásica", 2, 18000, ["Tres cuartos"]],
+    ["Aros de Cebolla", 1, 10000],
+  ]);
+  return { ...fresh, createdAt: new Date().toISOString() };
 }
-
-export function orderSubtotal(order: DemoOrder) {
-  return subtotalOf(order.items);
-}
-
-export function orderTotal(order: DemoOrder) {
-  return orderSubtotal(order) + order.deliveryFee;
-}
-
-export function relativeTime(minutesAgo: number) {
-  if (minutesAgo < 1) return "Justo ahora";
-  if (minutesAgo < 60) return `Hace ${minutesAgo} min`;
-  const hours = Math.round(minutesAgo / 60);
-  if (hours < 24) return `Hace ${hours} h`;
-  return `Hace ${Math.round(hours / 24)} d`;
-}
-
-const RAW_ORDERS: Omit<DemoOrder, "id">[] = [
-  {
-    code: "#1042",
-    customerName: "Juan Pérez",
-    phone: "573001112233",
-    address: "Calle 45 #12-30, apto 501",
-    items: [
-      { name: "Bacon Burger", quantity: 2, unitPrice: 24900 },
-      { name: "Papas Cheddar", quantity: 1, unitPrice: 12900 },
-    ],
-    deliveryFee: 5000,
-    paymentMethod: "transferencia",
-    status: "pending",
-    minutesAgo: 3,
-  },
-  {
-    code: "#1041",
-    customerName: "María López",
-    phone: "573002223344",
-    address: "Carrera 9 #67-21",
-    items: [{ name: "Pepperoni", quantity: 1, unitPrice: 28000 }],
-    deliveryFee: 5000,
-    paymentMethod: "datafono",
-    status: "sent",
-    minutesAgo: 22,
-  },
-  {
-    code: "#1040",
-    customerName: "Carlos Ruiz",
-    phone: "573003334455",
-    address: "Calle 80 #14-06",
-    items: [
-      { name: "Combo Burger", quantity: 1, unitPrice: 32900 },
-      { name: "Coca-Cola", quantity: 1, unitPrice: 5000 },
-    ],
-    deliveryFee: 5000,
-    paymentMethod: "efectivo",
-    status: "delivered",
-    minutesAgo: 96,
-  },
-  {
-    code: "#1039",
-    customerName: "Andrea Gómez",
-    phone: "573004445566",
-    address: "Transversal 21 #45-12",
-    items: [
-      { name: "Perro Especial", quantity: 2, unitPrice: 15900 },
-      { name: "Limonada Natural", quantity: 2, unitPrice: 7900 },
-    ],
-    deliveryFee: 5000,
-    paymentMethod: "efectivo",
-    status: "preparing",
-    minutesAgo: 12,
-  },
-  {
-    code: "#1038",
-    customerName: "Felipe Ortiz",
-    phone: "573005556677",
-    address: "Calle 127 #52-10",
-    items: [{ name: "Combo Pizza", quantity: 1, unitPrice: 30900 }],
-    deliveryFee: 5000,
-    paymentMethod: "transferencia",
-    status: "delivered",
-    minutesAgo: 210,
-  },
-  {
-    code: "#1037",
-    customerName: "Laura Ramírez",
-    phone: "573006667788",
-    address: "Carrera 15 #88-40",
-    items: [
-      { name: "Clásica Burger", quantity: 1, unitPrice: 18900 },
-      { name: "Brownie", quantity: 1, unitPrice: 10900 },
-      { name: "Coca-Cola", quantity: 1, unitPrice: 5000 },
-    ],
-    deliveryFee: 5000,
-    paymentMethod: "datafono",
-    status: "sent",
-    minutesAgo: 35,
-  },
-  {
-    code: "#1036",
-    customerName: "Diego Salazar",
-    phone: "573007778899",
-    address: "Calle 63 #7-18",
-    items: [{ name: "Doble Carne", quantity: 1, unitPrice: 27900 }],
-    deliveryFee: 5000,
-    paymentMethod: "efectivo",
-    status: "pending",
-    minutesAgo: 6,
-  },
-  {
-    code: "#1035",
-    customerName: "Camila Torres",
-    phone: "573008889900",
-    address: "Carrera 30 #10-55",
-    items: [
-      { name: "Hawaiana", quantity: 1, unitPrice: 27000 },
-      { name: "Limonada Natural", quantity: 1, unitPrice: 7900 },
-    ],
-    deliveryFee: 5000,
-    paymentMethod: "transferencia",
-    status: "delivered",
-    minutesAgo: 320,
-  },
-  {
-    code: "#1034",
-    customerName: "Santiago Vargas",
-    phone: "573009990011",
-    address: "Calle 19 #4-22",
-    items: [
-      { name: "Perro Clásico", quantity: 3, unitPrice: 12900 },
-    ],
-    deliveryFee: 5000,
-    paymentMethod: "efectivo",
-    status: "preparing",
-    minutesAgo: 18,
-  },
-  {
-    code: "#1033",
-    customerName: "Valentina Reyes",
-    phone: "573001110022",
-    address: "Carrera 50 #26-70",
-    items: [{ name: "Combo Burger", quantity: 2, unitPrice: 32900 }],
-    deliveryFee: 5000,
-    paymentMethod: "transferencia",
-    status: "delivered",
-    minutesAgo: 480,
-  },
-];
-
-export const DEMO_ORDERS: DemoOrder[] = RAW_ORDERS.map((order, i) => ({ id: i + 1, ...order }));
-
-export const DASHBOARD_METRICS = {
-  ordersToday: 24,
-  salesToday: 685000,
-  pendingOrders: 6,
-  activeConversations: 8,
-};
 
 // --- Conversaciones ----------------------------------------------------------
 
-export type ConversationMessage = {
-  role: "customer" | "bot";
-  text: string;
-  minutesAgo: number;
-};
+let msgSeq = 0;
+function msg(
+  role: InboxMessage["role"],
+  minutesAgo: number,
+  text: string,
+  meta?: InboxMessage["meta"],
+  kind: InboxMessage["kind"] = "text",
+): InboxMessage {
+  msgSeq += 1;
+  return { id: `demo-${msgSeq}`, role, kind, text, createdAt: ago(minutesAgo), meta };
+}
 
-export type DemoConversation = {
-  id: number;
-  customerName: string;
-  phone: string;
-  botPaused: boolean;
-  escalationReason: string | null;
-  windowMinutesLeft: number;
-  messages: ConversationMessage[];
-};
+function convo(
+  c: Omit<InboxConversation, "lastMessageAt" | "lastInboundAt" | "channel"> & { windowMinutesAgo?: number },
+): InboxConversation {
+  const last = c.messages[c.messages.length - 1];
+  const lastCustomer = [...c.messages].reverse().find((m) => m.role === "customer");
+  const { windowMinutesAgo, ...rest } = c;
+  return {
+    ...rest,
+    channel: "whatsapp",
+    lastMessageAt: last?.createdAt ?? ago(0),
+    lastInboundAt:
+      windowMinutesAgo !== undefined ? ago(windowMinutesAgo) : (lastCustomer?.createdAt ?? null),
+  };
+}
 
-const RAW_CONVERSATIONS: Omit<DemoConversation, "id">[] = [
-  {
-    customerName: "Juan Pérez",
-    phone: "573001112233",
-    botPaused: false,
-    escalationReason: null,
-    windowMinutesLeft: 1430,
-    messages: [
-      { role: "customer", text: "Hola, buenas tardes", minutesAgo: 6 },
-      { role: "bot", text: "¡Hola! Bienvenido. ¿Quieres ver el menú de hoy?", minutesAgo: 6 },
-      { role: "customer", text: "Quiero una hamburguesa doble y unas papas", minutesAgo: 3 },
-      {
-        role: "bot",
-        text: "Te dejo el link del menú para armar tu pedido y enviarlo desde ahí.",
-        minutesAgo: 2,
-      },
-    ],
-  },
-  {
-    customerName: "María López",
-    phone: "573002223344",
-    botPaused: false,
-    escalationReason: null,
-    windowMinutesLeft: 1200,
-    messages: [
-      { role: "customer", text: "¿Cuánto cuesta la pizza pepperoni?", minutesAgo: 5 },
-      { role: "bot", text: "La Pepperoni cuesta $28.000. ¿Quieres agregarla al carrito?", minutesAgo: 5 },
-    ],
-  },
-  {
-    customerName: "Carlos Ruiz",
-    phone: "573003334455",
-    botPaused: false,
-    escalationReason: null,
-    windowMinutesLeft: 1050,
-    messages: [
-      { role: "customer", text: "Quiero hacer un pedido", minutesAgo: 10 },
-      {
-        role: "bot",
-        text: "Perfecto, ábrelo desde el menú y cuando lo envíes yo te confirmo la dirección y el pago por acá.",
-        minutesAgo: 10,
-      },
-    ],
-  },
-  {
-    customerName: "Andrea Gómez",
-    phone: "573004445566",
-    botPaused: false,
-    escalationReason: null,
-    windowMinutesLeft: 980,
-    messages: [
-      { role: "customer", text: "#PEDIDO K3M9QZ", minutesAgo: 14 },
-      {
-        role: "bot",
-        text: "¡Recibí tu pedido! ¿A qué dirección lo enviamos?",
-        minutesAgo: 14,
-      },
-      { role: "customer", text: "Transversal 21 #45-12", minutesAgo: 13 },
-      { role: "bot", text: "¿Pagas en efectivo o por transferencia?", minutesAgo: 13 },
-      { role: "customer", text: "Efectivo", minutesAgo: 12 },
-    ],
-  },
-  {
-    customerName: "Felipe Ortiz",
-    phone: "573005556677",
-    botPaused: true,
-    escalationReason: "El cliente pidió hablar con una persona.",
-    windowMinutesLeft: 640,
-    messages: [
-      { role: "customer", text: "Mi pedido llegó incompleto, faltó la bebida", minutesAgo: 40 },
-      {
-        role: "bot",
-        text: "Esa no te la sé responder bien, y prefiero no inventarte nada. Ya le avisé a una persona del equipo para que te ayude.",
-        minutesAgo: 40,
-      },
-    ],
-  },
-  {
-    customerName: "Laura Ramírez",
-    phone: "573006667788",
-    botPaused: false,
-    escalationReason: null,
-    windowMinutesLeft: 1300,
-    messages: [
-      { role: "customer", text: "¿Tienen algo sin carne?", minutesAgo: 40 },
-      {
-        role: "bot",
-        text: "Sí, manejamos la Hamburguesa Vegetariana. ¿Te la muestro en el menú?",
-        minutesAgo: 39,
-      },
-    ],
-  },
-  {
-    customerName: "Diego Salazar",
-    phone: "573007778899",
-    botPaused: false,
-    escalationReason: null,
-    windowMinutesLeft: 1400,
-    messages: [
-      { role: "customer", text: "Hola", minutesAgo: 8 },
-      {
-        role: "bot",
-        text: "¡Hola! Bienvenido a Sabor Urbano. Aquí tienes el menú para armar tu pedido 👇",
-        minutesAgo: 8,
-      },
-    ],
-  },
-];
+export function demoConversations(): InboxConversation[] {
+  // Mismos ids en cada llamada (servidor y navegador generan lo mismo).
+  msgSeq = 0;
+  return [
+    convo({
+      id: 5,
+      phone: "573005556677",
+      displayName: "Felipe Ortiz",
+      botPaused: true,
+      escalationReason: "Pidió hablar con una persona: su pedido llegó incompleto.",
+      phase: "advising",
+      unread: 2,
+      messages: [
+        msg("customer", 9, "Buenas, acabo de recibir el pedido N4DKQA"),
+        msg("customer", 9, "Me llegó la hamburguesa pero faltó la gaseosa"),
+        msg(
+          "bot",
+          9,
+          "Qué pena contigo Eso no te lo quiero responder a medias: ya le avisé a una persona del equipo para que te ayude.",
+        ),
+        msg("customer", 4, "Ok, quedo atento"),
+      ],
+    }),
+    convo({
+      id: 1,
+      phone: "573001112233",
+      displayName: "Juan Pérez",
+      botPaused: false,
+      escalationReason: null,
+      phase: "awaiting_payment",
+      unread: 0,
+      messages: [
+        msg("customer", 8, "Hola, buenas tardes"),
+        msg("bot", 8, "¡Hola Juan! Bienvenido a Sabor Urbano. Arma tu pedido desde el menú:", { cta: "Ver el menú" }),
+        msg("customer", 3, "#PEDIDO K3M9QZ"),
+        msg(
+          "bot",
+          3,
+          "¡Recibí tu pedido K3M9QZ! 2× Doble Tocineta, 1× Papas con Queso y Tocineta, 2× Gaseosa. Total $83.000. ¿Cómo vas a pagar?",
+          { buttons: ["Efectivo", "Transferencia", "Datáfono"] },
+        ),
+        msg("customer", 2, "Transferencia", undefined, "button"),
+        msg("bot", 2, "Listo. Envía el comprobante a Nequi 300 123 4567 y te confirmo apenas llegue."),
+      ],
+    }),
+    convo({
+      id: 2,
+      phone: "573002223344",
+      displayName: "María López",
+      botPaused: false,
+      escalationReason: null,
+      phase: "advising",
+      unread: 0,
+      messages: [
+        msg("customer", 34, "¿Cuánto vale la hamburguesa clásica?"),
+        msg("bot", 34, "La Hamburguesa Clásica vale $18.000 e incluye papas a la francesa", { cta: "Ver el menú" }),
+        msg("customer", 33, "Perfecto, ya la pido"),
+        msg("customer", 6, "¿Ya va en camino?"),
+        msg("bot", 6, "¡Sí! Tu pedido R6CJTN salió hace unos minutos"),
+      ],
+    }),
+    convo({
+      id: 7,
+      phone: "573007778899",
+      displayName: "Diego Salazar",
+      botPaused: false,
+      escalationReason: null,
+      phase: "collecting_address",
+      unread: 0,
+      messages: [
+        msg("customer", 12, "Hola"),
+        msg("bot", 12, "¡Hola Diego! Aquí tienes el menú para armar tu pedido:", { cta: "Ver el menú" }),
+        msg("customer", 7, "#PEDIDO HT7RWA"),
+        msg("bot", 7, "¡Recibí tu pedido HT7RWA! ¿Lo enviamos a Calle 63 #7-18?", { buttons: ["Sí, ahí", "Otra dirección"] }),
+        msg("customer", 7, "Sí, ahí", undefined, "button"),
+      ],
+    }),
+    convo({
+      id: 6,
+      phone: "573006667788",
+      displayName: "Laura Ramírez",
+      botPaused: true,
+      escalationReason: null,
+      phase: "advising",
+      unread: 0,
+      messages: [
+        msg("customer", 50, "¿Tienen algo sin carne?"),
+        msg("bot", 50, "Sí, la Hamburguesa Vegetariana: torta de garbanzo y quinua con aguacate, $17.000"),
+        msg("customer", 45, "¿Y la pueden hacer sin cebolla? Soy alérgica"),
+        msg("agent", 44, "Hola Laura, te habla Carolina de Sabor Urbano. Claro que sí, la dejamos sin cebolla y separamos la plancha"),
+        msg("customer", 42, "Mil gracias!!"),
+      ],
+    }),
+    convo({
+      id: 3,
+      phone: "573003334455",
+      displayName: "Carlos Ruiz",
+      botPaused: false,
+      escalationReason: null,
+      phase: "advising",
+      unread: 0,
+      messages: [
+        msg("customer", 72, "Quiero hacer un pedido"),
+        msg("bot", 72, "¡Con gusto! Ábrelo desde el menú y cuando lo envíes te confirmo por acá.", { cta: "Ver el menú" }),
+        msg("customer", 58, "Muy rico todo, gracias"),
+        msg("bot", 58, "¡Gracias a ti, Carlos! Que lo disfrutes."),
+      ],
+    }),
+    convo({
+      id: 8,
+      phone: "573178889900",
+      displayName: "Ricardo Peña",
+      botPaused: false,
+      escalationReason: null,
+      phase: "advising",
+      unread: 0,
+      windowMinutesAgo: 60 * 26,
+      messages: [
+        msg("customer", 60 * 26, "¿Hacen domicilios a Chía?"),
+        msg("bot", 60 * 26, "Por ahora cubrimos un radio de 4 km alrededor del local. Chía queda fuera de esa zona"),
+      ],
+    }),
+  ];
+}
 
-export const DEMO_CONVERSATIONS: DemoConversation[] = RAW_CONVERSATIONS.map((c, i) => ({
-  id: i + 1,
-  ...c,
-}));
-
-export const BOT_STATS = {
+export const DEMO_BOT_STATS = {
   messagesToday: 148,
   ordersGenerated: 21,
-  lastMessageSecondsAgo: 8,
-  whatsappConnected: true,
-  catalogSynced: true,
 };
 
-// --- Catálogo ------------------------------------------------------------
+// --- Menú --------------------------------------------------------------------
 
-export type DemoProduct = {
-  id: number;
-  name: string;
-  description: string;
-  category: string;
-  price: number;
-  available: boolean;
+/** Símbolo de cada categoría del catálogo semilla. */
+const CATEGORY_SYMBOL: Record<string, MenuSymbolName> = {
+  hamburguesas: "burger",
+  pollo: "chicken",
+  acompanamientos: "fries",
+  bebidas: "drink",
+  postres: "dessert",
 };
 
-export const CATEGORIES = [
-  "Hamburguesas",
-  "Pizzas",
-  "Perros",
-  "Combos",
-  "Entradas",
-  "Bebidas",
-  "Postres",
-];
+export function demoMenu(): { categories: MenuCategory[]; products: MenuProduct[] } {
+  let productId = 0;
+  let groupId = 0;
+  let optionId = 0;
 
-const RAW_PRODUCTS: Omit<DemoProduct, "id">[] = [
-  { name: "Clásica Burger", description: "Carne a la brasa, queso cheddar, lechuga y tomate.", category: "Hamburguesas", price: 18900, available: true },
-  { name: "Bacon Burger", description: "Doble carne, tocineta crocante y salsa de la casa.", category: "Hamburguesas", price: 24900, available: true },
-  { name: "Doble Carne", description: "Dos carnes de 150 g con queso fundido.", category: "Hamburguesas", price: 27900, available: true },
-  { name: "Hamburguesa Vegetariana", description: "Torta de garbanzo y quinua, aguacate.", category: "Hamburguesas", price: 17900, available: true },
-  { name: "Pepperoni", description: "Mozzarella y pepperoni curado.", category: "Pizzas", price: 28000, available: true },
-  { name: "Hawaiana", description: "Jamón, piña asada y mozzarella.", category: "Pizzas", price: 27000, available: true },
-  { name: "Cuatro Carnes", description: "Res, cerdo, pepperoni y chorizo.", category: "Pizzas", price: 32900, available: false },
-  { name: "Perro Clásico", description: "Salchicha ahumada, papa en hilo y salsas.", category: "Perros", price: 12900, available: true },
-  { name: "Perro Especial", description: "Tocineta, queso mozzarella y piña asada.", category: "Perros", price: 15900, available: true },
-  { name: "Combo Burger", description: "Clásica Burger + papas + bebida 400 ml.", category: "Combos", price: 32900, available: true },
-  { name: "Combo Pizza", description: "Pizza personal + bebida 400 ml.", category: "Combos", price: 30900, available: true },
-  { name: "Papas Cheddar", description: "Papas rústicas con cheddar fundido.", category: "Entradas", price: 12900, available: false },
-  { name: "Aros de Cebolla", description: "Rebozado crocante, salsa de la casa.", category: "Entradas", price: 11500, available: true },
-  { name: "Nachos de la Casa", description: "Totopos, carne desmechada y pico de gallo.", category: "Entradas", price: 16900, available: true },
-  { name: "Coca-Cola", description: "Botella personal 400 ml.", category: "Bebidas", price: 5000, available: true },
-  { name: "Limonada Natural", description: "Hecha al momento.", category: "Bebidas", price: 7900, available: true },
-  { name: "Malteada", description: "Vainilla, chocolate o fresa.", category: "Bebidas", price: 13900, available: true },
-  { name: "Brownie", description: "Chocolate 70%, nueces y salsa tibia.", category: "Postres", price: 10900, available: true },
-  { name: "Cheesecake", description: "Base de galleta y frutos rojos.", category: "Postres", price: 12900, available: true },
-];
+  const categories: MenuCategory[] = CATALOG.map((c, i) => ({
+    id: i + 1,
+    name: c.name,
+    symbol: CATEGORY_SYMBOL[c.slug] ?? "plate",
+    active: true,
+  }));
 
-export const DEMO_PRODUCTS: DemoProduct[] = RAW_PRODUCTS.map((p, i) => ({ id: i + 1, ...p }));
+  const products: MenuProduct[] = CATALOG.flatMap((c, i) =>
+    c.products.map((p) => ({
+      id: ++productId,
+      categoryId: i + 1,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      imageUrl: null,
+      available: p.available ?? true,
+      optionGroups: (p.optionGroups ?? []).map((g) => ({
+        id: ++groupId,
+        name: g.name,
+        type: g.type,
+        required: g.required ?? false,
+        options: g.options.map((o) => ({ id: ++optionId, name: o.name, priceDelta: o.priceDelta ?? 0 })),
+      })),
+    })),
+  );
+
+  return { categories, products };
+}
+
+export function demoPromotions(): Promotion[] {
+  return [
+    {
+      id: 1,
+      name: "Hora feliz de hamburguesas",
+      kind: "percent",
+      value: 20,
+      scope: { type: "category", ids: [1] },
+      days: [1, 2, 3, 4, 5],
+      from: "15:00",
+      to: "18:00",
+      active: true,
+    },
+    {
+      id: 2,
+      name: "Martes de alitas",
+      kind: "2x1",
+      value: 0,
+      scope: { type: "products", ids: [6] },
+      days: [2],
+      from: null,
+      to: null,
+      active: true,
+    },
+    {
+      id: 3,
+      name: "Limonada a $5.000",
+      kind: "price",
+      value: 5000,
+      scope: { type: "products", ids: [17] },
+      days: [0, 6],
+      from: null,
+      to: null,
+      active: false,
+    },
+  ];
+}
