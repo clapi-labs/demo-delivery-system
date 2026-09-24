@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import type { OrderStatus } from "../domain/order-status";
 import type { PaymentMethod } from "../domain/payment";
 import type { PromotionKind, PromotionScope } from "../domain/promotions";
 
@@ -208,18 +209,9 @@ export const processedMessages = pgTable("processed_messages", {
 // Pedidos
 // ---------------------------------------------------------------------------
 
-/**
- * `draft` lo crea el menú; pasa a `pending` solo cuando el asistente canjeó el
- * código y cerró dirección y pago. El portal no muestra borradores: un carrito
- * que nadie cerró no es un pedido.
- */
-export type OrderStatus =
-  | "draft"
-  | "pending"
-  | "preparing"
-  | "sent"
-  | "delivered"
-  | "cancelled";
+/** Definido en `domain/order-status.ts` — ver ahí por qué no vive en este
+ *  archivo. Se reexporta para que `@sistema/shared/db` siga sirviéndolo. */
+export type { OrderStatus };
 
 export type SelectedOption = {
   group: string;

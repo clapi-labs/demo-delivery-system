@@ -2,20 +2,21 @@
 
 > La lectura más importante al empezar una sesión.
 
-**Última actualización:** 2026-09-23
+**Última actualización:** 2026-09-24
 
 ---
 
 ## Dónde estamos
 
-**Fases 0 a 4 verificadas contra Neon; Fase 5 (portal) tiene Pedidos y
-Conversaciones conectados de verdad a Neon (lectura y escritura, incluido el
-envío real por WhatsApp desde la bandeja); solo el Menú del portal sigue
-sobre datos de demostración.** Todo lo determinista, el asesor con modelo
-(RF-13) y el menú público (RF-20 a RF-27) funcionan de punta a punta contra
-APIs reales — Neon y OpenAI. Pausar/reactivar el bot y responder desde la
-bandeja (RF-33 a RF-36) se verificaron con un mensaje real entregado por
-WhatsApp, no solo contra la base.
+**Fases 0 a 5 conectadas a Neon de punta a punta.** El portal ya no tiene
+ninguna pantalla sobre datos de demostración: Pedidos, Conversaciones y el
+Menú leen y escriben la base real. Lo determinista, el asesor con modelo
+(RF-13) y el menú público (RF-20 a RF-27) funcionan contra APIs reales — Neon
+y OpenAI.
+
+Verificado con WhatsApp real, no solo contra la base: responder desde la
+bandeja (RF-33 a RF-36) y los avisos de cambio de estado del pedido
+(RF-30/31, tres mensajes entregados).
 
 **El bloqueo de Meta se resolvió, pero distinto a lo planeado: número
 compartido con Qanelo por rotación manual, no un número propio (ADR-11).**
@@ -25,7 +26,8 @@ valores `WHATSAPP_*`, desplegar (Fase 6) para tener una URL real que darle a
 la rotación, y coordinar el cambio. Ver la sección de más abajo.
 
 Falta la transcripción de voz (RF-14, bloqueada por lo mismo hasta que haya
-tráfico real de Meta) y conectar el portal a Neon/al outbox.
+tráfico real de Meta), crear/editar productos desde el portal (necesita dónde
+guardar la foto) y los comprobantes de pago (RF-37 a RF-39).
 
 | Fase | Estado |
 |---|---|
@@ -34,7 +36,7 @@ tráfico real de Meta) y conectar el portal a Neon/al outbox.
 | 2 · Canal de WhatsApp | ✅ código, verificado contra Neon; el candado de rotación (ADR-11) también verificado; falta desplegar y coordinar la rotación para la prueba en vivo |
 | 3 · Motor del asistente | ✅ lo determinista y el asesor con modelo (OpenAI real); ⬜ la voz — falta `services/whatsapp/media.ts` + Whisper, y tráfico real de Meta para probarlo |
 | 4 · Menú público | ✅ catálogo, carrito, personalización, envío del pedido y el endpoint interno del bot que lo recibe |
-| 5 · Portal y bandeja | 🟡 Pedidos y Conversaciones (lectura, pausar/reactivar/responder) conectados a Neon y a `apps/bot`; Menú sigue con datos de demostración; falta el outbox (RF-30/31) |
+| 5 · Portal y bandeja | ✅ Pedidos, Conversaciones y Menú sobre Neon; outbox de avisos (RF-30/31) verificado con WhatsApp real; ⬜ crear/editar productos (falta almacenamiento de imágenes) y los comprobantes (RF-37 a RF-39) |
 | 6 · Despliegue y video | ⬜ Ahora es el siguiente paso obligado: sin URL pública no hay a quién rotarle el webhook |
 
 ---
@@ -485,6 +487,102 @@ portal"). Lo que cambia:
 
 `npm run build` (las tres apps) y `eslint` pasan; Conversaciones sigue
 mostrando los hilos reales, los mensajes de sistema y la ventana de 24 h.
+
+---
+
+## Promociones, recomendaciones y avisos de pedido (2026-09-24)
+
+La última tanda antes del video. Cuatro cosas, en orden de dependencia:
+
+### 1. Las promociones existen de verdad
+
+Tabla `promotions` nueva, con la forma que el portal ya había propuesto
+(tipo, valor, alcance, días, franja horaria). Las **reglas** viven en
+`packages/shared/src/domain/promotions.ts` porque las necesitan las tres
+apps: a qué productos aplica, qué precio deja, y si corre hoy.
+
+Dos detalles que costaron pensarse:
+
+- **El día es el del negocio, no el del servidor.** En Vercel las funciones
+  corren en UTC: un viernes a las 7 p.m. en Colombia el servidor ya cree que
+  es sábado, y una promo de viernes se apagaría cinco horas antes de tiempo.
+- **Las promos apuntan a categorías y productos por id**, así que la semilla
+  las declara por `slug`/`sku` y `seedPromotions()` los resuelve — sembrar el
+  catálogo lo borra y lo reinserta, y los ids cambian. Por eso va siempre
+  después de `seedCatalog`, en la misma corrida.
+
+### 2. El Menú del portal dejó de ser una maqueta
+
+`GET /api/menu` lee el catálogo real (el mismo `getCatalog()` del menú
+público y del bot, con `includeHidden` para que el restaurante vea lo que
+escondió) y las promociones. Marcar agotado escribe en `products.available`,
+y el menú público y el asistente lo reflejan al instante porque leen esa
+misma columna.
+
+Las tarjetas muestran ahora **las mismas fotos por categoría que ve el
+cliente**, copiadas a `apps/portal/src/assets/`. Se copiaron en vez de
+compartirse desde `packages/shared` porque son importaciones estáticas de
+Next, que solo funcionan dentro de una app; el precio es medio mega en el
+repositorio contra servir las fotos de una app desde otra por URL absoluta,
+que se rompe en cada despliegue de vista previa.
+
+**Crear y editar productos sigue sin guardarse** (falta dónde poner la foto,
+ver "Pendiente de decidir") y ahora **la interfaz lo dice en pantalla**: en
+una demo, editar un precio creyendo que quedó guardado es peor que no poder
+editarlo.
+
+### 3. El asistente contesta por promociones y recomienda por ingredientes
+
+Dos herramientas nuevas, con el reparto de trabajo de ADR-08 intacto — el
+modelo dice *qué* preguntaron, el código resuelve la respuesta:
+
+- `lookup_promotions`: el modelo solo extrae el día ("hoy", "el viernes");
+  qué promoción corre, a qué aplica y en cuánto deja cada producto sale de la
+  tabla. Inventarse un descuento es la clase de error que el restaurante
+  termina teniendo que honrar.
+- `recommend_products`: "una hamburguesa que no tenga queso". Filtra contra
+  la descripción real. Dos asimetrías que importan: lo que se **excluye** no
+  mira las opciones (descartar la de pollo porque se le *puede* agregar queso
+  sería absurdo), lo que se **incluye** sí (quien pide algo picante se
+  conforma con unas alitas cuya salsa lo es). Y una tabla corta traduce
+  cortes a categorías: sin ella, a quien pedía algo sin carne se le ofrecía
+  costilla.
+
+`lookup_products` además recibe **cantidades y todos los productos
+nombrados**: pedir tres cosas deja las tres en el carrito, no solo la
+primera.
+
+Verificado con `npm run verify:advisor` contra OpenAI y Neon reales, 12/12.
+
+### 4. Los avisos de cambio de estado (RF-30, RF-31)
+
+El portal encola en `notifications` y le pide al bot que entregue; el envío
+sale por `sendText` (RN-05). El texto lo redacta `orderStatusMessage()` en
+`@sistema/shared`, que es lo que comparten los dos.
+
+**Hay dos disparadores, y no son dos caminos.** El cron de Vercel corre una
+vez al día en el plan gratuito, y un cliente que se entera mañana de que su
+pedido salió hoy no se entera de nada; por eso el portal llama además a
+`/api/internal/outbox` apenas encola. Los dos ejecutan el mismo
+`flushOutbox()`. Si el empujón falla, el cron lo recoge — por eso el portal
+no espera su respuesta y el cambio de estado responde 200 igual.
+
+**Esto no cuesta dinero.** Meta cobra las conversaciones que inicia el
+negocio con plantilla, no los mensajes de servicio dentro de la ventana de
+24 h, y un cliente que acaba de pedir siempre está dentro. (`wa.me` no servía
+para esto: es un link que *abre* un chat, no puede empujar un mensaje.)
+
+Verificado de punta a punta: tres avisos reales entregados al WhatsApp del
+número de prueba, y los tres quedaron también en el hilo de la bandeja.
+
+### Lo que queda cojo a propósito
+
+**Una promoción no cambia todavía lo que el cliente paga.** El asistente la
+anuncia con el precio con descuento, pero el menú cobra el precio lleno: el
+recálculo del servidor (RN-02) no mira las promociones. Es el único punto
+donde la demo puede contradecirse en cámara —preguntar por la promo y luego
+pedir ese producto— y está pendiente de decidir si se toca, porque es el
+camino del dinero.
 
 ---
 

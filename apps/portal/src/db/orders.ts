@@ -100,13 +100,18 @@ export async function getPortalOrders(): Promise<PortalOrder[]> {
  * Nunca toca un borrador (`status != "draft"`): el portal no puede convertir
  * en pedido real algo que jamás pasó por el canje del código — ese es el
  * candado de ADR-02, y vale igual desde acá.
+ *
+ * Devuelve el pedido como quedó (o `null` si no había nada que cambiar)
+ * porque quien llama necesita su **código** para redactar el aviso al cliente
+ * (RF-30), y volver a consultarlo sería un viaje más a la base por algo que
+ * el `UPDATE` ya tenía en la mano.
  */
 export async function setPortalOrderStatus(orderId: number, status: OrderStatus) {
-  const updated = await db
+  const [updated] = await db
     .update(orders)
     .set({ status, updatedAt: new Date() })
     .where(and(eq(orders.id, orderId), ne(orders.status, "draft")))
-    .returning();
+    .returning({ id: orders.id, code: orders.code, status: orders.status });
 
-  return updated.length > 0;
+  return updated ?? null;
 }

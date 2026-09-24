@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
 
-import type { OrderStatus } from "@sistema/shared/db";
+import { orderStatusMessage, type OrderStatus } from "@sistema/shared";
+import { enqueueOrderNotification } from "@sistema/shared/db";
 
 import { getPortalOrders, setPortalOrderStatus } from "@/db/orders";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Pedidos del portal (RF-28, RF-29).
+ * Pedidos del portal (RF-28, RF-29, RF-30).
  *
  * GET: el tablero (todo menos los borradores — un carrito que nadie cerró no
  * es un pedido).
- * POST: cambio de estado.
+ * POST: cambio de estado, y el aviso al cliente.
  *
- * **Todavía no encola el aviso al cliente** (RF-30, el outbox): eso es el
- * siguiente paso. Hoy el cambio de estado se guarda y el cliente no se
- * entera, que es mejor que mandarlo directo a Meta desde acá y construir un
- * segundo camino de salida (RN-05).
+ * **El aviso se encola, no se envía desde acá.** El portal escribe una fila
+ * en `notifications` y le pide al bot que la entregue; el envío sale por
+ * `apps/bot` (RN-05, un solo camino de salida). Que Meta esté caída o la
+ * ventana de 24 h cerrada no puede bloquear a alguien moviendo una comanda en
+ * la cocina: el estado se guarda igual y el aviso se reintenta.
  */
 
 const VALID: OrderStatus[] = ["pending", "preparing", "sent", "delivered", "cancelled"];
@@ -39,10 +41,61 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const ok = await setPortalOrderStatus(orderId, status as OrderStatus);
-  if (!ok) {
+  const order = await setPortalOrderStatus(orderId, status as OrderStatus);
+  if (!order) {
     return NextResponse.json({ error: "not_found_or_draft" }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true });
+  // El aviso va después de guardar y **nunca** puede tumbar la respuesta: para
+  // la cocina lo que importa es que la comanda se movió. Si algo de esto
+  // falla, el estado ya quedó bien y el cron recoge el aviso más tarde.
+  const notified = await notifyCustomer(orderId, order.status, order.code);
+
+  return NextResponse.json({ ok: true, notified });
+}
+
+async function notifyCustomer(orderId: number, status: OrderStatus, code: string) {
+  const text = orderStatusMessage(status, code);
+  if (!text) return false;
+
+  try {
+    const queued = await enqueueOrderNotification(orderId, text);
+    if (!queued) return false;
+  } catch (error) {
+    console.error("[api/orders] no se pudo encolar el aviso:", error);
+    return false;
+  }
+
+  await requestDelivery();
+  return true;
+}
+
+/**
+ * Le pide al bot que entregue ya lo que haya pendiente.
+ *
+ * Es un empujón, no el camino de entrega: el cron del bot barre igual. Por eso
+ * cualquier fallo se registra y se sigue — dejar el aviso para el próximo
+ * barrido es un retraso, no una pérdida.
+ */
+async function requestDelivery() {
+  const botUrl = process.env.BOT_URL;
+  const secret = process.env.INTERNAL_SECRET;
+  if (!botUrl || !secret) {
+    console.error("[api/orders] falta BOT_URL o INTERNAL_SECRET: el aviso queda para el cron");
+    return;
+  }
+
+  const base = (/^https?:\/\//i.test(botUrl) ? botUrl : `https://${botUrl}`).replace(/\/+$/, "");
+
+  try {
+    const res = await fetch(`${base}/api/internal/outbox`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    if (!res.ok) {
+      console.warn(`[api/orders] el bot respondió ${res.status} al barrer el outbox`);
+    }
+  } catch (error) {
+    console.warn("[api/orders] no se pudo avisar al bot; queda para el cron:", error);
+  }
 }
