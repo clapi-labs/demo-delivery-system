@@ -607,6 +607,27 @@ fuera de franja horaria, y cuál gana si se solapan dos). Comprobado además
 con un pedido real creado por la API: 2 papas en promoción quedaron en
 $10.000 y no en $16.000.
 
+### 6. La demo atiende 24/7 (horario desactivado a propósito)
+
+El candado de fuera de horario (RF-12) **sigue en el código y sin tocar**: el
+corte duro en `orchestrator.ts` paso 3, `isOpenNow()`, el rechazo del pedido
+del menú (`out_of_hours`). Lo que cambió son los valores por defecto de
+`BUSINESS_OPENS_HOUR`/`CLOSES_HOUR`, que ahora son `0` y `24`.
+
+Razón: con 11 a.m.–10 p.m. el bot deja de contestar justo cuando se graba el
+video o cuando el prospecto se anima a escribirle de noche desde su celular.
+El comportamiento ya está verificado (`verify-orchestrator` lo fuerza igual,
+fijando 0/24 al arrancar), así que en la demo solo tapaba todo lo demás.
+
+Para devolverle horario real a un negocio: poner las tres variables en el
+entorno (están comentadas en `.env.example`). No hay que tocar código.
+
+Lo que se ajustó alrededor, porque "cierra a las 12 a.m." se lee como un
+error: `isAlwaysOpen()` en shared, y con él la etiqueta del menú público
+("Abierto ahora · 24 horas") y la del encabezado del portal ("Abierto · 24
+horas"). La gráfica de pedidos por hora del portal pasa de 11 a 24 columnas,
+así que etiqueta una de cada cuatro en vez de una de cada dos.
+
 ---
 
 ## Decisiones que conviene no reabrir

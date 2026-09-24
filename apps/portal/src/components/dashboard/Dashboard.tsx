@@ -170,6 +170,8 @@ type HourBucket = { hour: number; count: number; sales: number };
 function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentHour: number | null }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const max = Math.max(4, ...buckets.map((b) => b.count));
+  // Con horario 24/7 son 24 columnas: etiquetar una de cada dos las encima.
+  const labelStep = buckets.length > 14 ? 4 : 2;
   const step = max <= 4 ? 1 : max <= 10 ? 2 : 5;
   const top = Math.ceil(max / step) * step;
   const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step).reverse();
@@ -232,7 +234,7 @@ function HourlyChart({ buckets, currentHour }: { buckets: HourBucket[]; currentH
               hour === currentHour ? "font-semibold text-ink" : "text-ink-3"
             }`}
           >
-            {i % 2 === 0 || hour === currentHour ? hourLabel(hour).replace(" ", "") : ""}
+            {i % labelStep === 0 || hour === currentHour ? hourLabel(hour).replace(" ", "") : ""}
           </span>
         ))}
       </div>
@@ -305,6 +307,9 @@ export function Dashboard({ business }: { business: BusinessHours }) {
 
   const hour = now ? hourIn(business.timezone, now) : null;
   const open = hour !== null && hour >= business.opensAt && hour < business.closesAt;
+  // El mismo cálculo que `isAlwaysOpen()` en shared, hecho sobre las props:
+  // este componente es de cliente y no puede leer `process.env`.
+  const alwaysOpen = business.opensAt <= 0 && business.closesAt >= 24;
 
   // Hoy hasta ahora, contra ayer hasta la misma hora.
   const startToday = now ? new Date(now).setHours(0, 0, 0, 0) : 0;
@@ -352,7 +357,11 @@ export function Dashboard({ business }: { business: BusinessHours }) {
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${open ? "bg-ok" : "bg-idle"}`} />
-            {open ? `Abierto hasta las ${hourLabel(business.closesAt)}` : `Cerrado. Abre a las ${hourLabel(business.opensAt)}`}
+            {alwaysOpen
+              ? "Abierto · 24 horas"
+              : open
+                ? `Abierto hasta las ${hourLabel(business.closesAt)}`
+                : `Cerrado. Abre a las ${hourLabel(business.opensAt)}`}
           </span>
         ) : null}
       </header>

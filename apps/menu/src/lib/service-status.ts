@@ -1,4 +1,4 @@
-import { BUSINESS, isOpenNow } from "@sistema/shared";
+import { BUSINESS, isAlwaysOpen, isOpenNow } from "@sistema/shared";
 
 /**
  * El estado del servicio, en la hora del NEGOCIO (`BUSINESS.timezone`), no
@@ -29,6 +29,11 @@ function clock(hour: number) {
 export function serviceStatus(now: Date = new Date()): ServiceStatus {
   const hour = hourInBusinessTz(now);
   const open = isOpenNow(now);
+
+  // Sin hora de cierre no hay cuenta regresiva que dar.
+  if (isAlwaysOpen()) {
+    return { open: true, label: "Abierto ahora · 24 horas" };
+  }
 
   if (open) {
     return { open: true, label: `Abierto ahora, cierra a las ${clock(BUSINESS.closesAt)}` };

@@ -28,7 +28,7 @@
 | ID | Requerimiento | Estado |
 |---|---|---|
 | RF-11 | Rutas deterministas sin modelo: saludo, menú, cómo pedir, ayuda, negocio | ✅ |
-| RF-12 | Fuera de horario: se contesta el horario sin llamar al modelo | ✅ |
+| RF-12 | Fuera de horario: se contesta el horario sin llamar al modelo | ✅ Implementado y verificado; **desactivado en la demo** — el horario por defecto es 0–24. Se reactiva poniendo `BUSINESS_OPENS_HOUR`/`CLOSES_HOUR` |
 | RF-13 | El asistente responde de productos con datos reales del catálogo | ✅ `bot/advisor.ts` conectado, verificado contra OpenAI real (`verify:advisor`, 9/9) |
 | RF-14 | Notas de voz: se transcriben y entran al mismo flujo que un texto | ⬜ Degrada con gracia (probado); la transcripción real necesita `OPENAI_API_KEY` |
 | RF-15 | Máquina de estados: canje → dirección → pago → cierre | ✅ |

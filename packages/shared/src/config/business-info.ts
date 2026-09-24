@@ -23,10 +23,23 @@ export const BUSINESS = {
   /** Una línea, para el héroe del menú. Opcional a propósito: sin ella el
    *  héroe se queda solo con el horario y la dirección. */
   tagline: env("BUSINESS_TAGLINE", ""),
-  hours: env("BUSINESS_HOURS", "Lunes a domingo, 11:00 a.m. a 10:00 p.m."),
+  /**
+   * **La demo atiende 24/7 a propósito.**
+   *
+   * El candado de fuera de horario (RF-12) está hecho y verificado
+   * (`verify-orchestrator`), pero con horario real el bot deja de contestar a
+   * las 10 p.m. — justo cuando se graba el video o cuando el prospecto se
+   * anima a probarlo desde su celular. Lo único que lograba en ese escenario
+   * era tapar todo lo demás.
+   *
+   * No se borró nada: el corte sigue en el código. Para volver al horario de
+   * un restaurante real basta con poner estas tres variables en el entorno
+   * (ver `.env.example`), sin tocar una línea.
+   */
+  hours: env("BUSINESS_HOURS", "Todos los días, 24 horas"),
   /** Horario en formato 24 h para la comprobación automática. */
-  opensAt: envInt("BUSINESS_OPENS_HOUR", 11),
-  closesAt: envInt("BUSINESS_CLOSES_HOUR", 22),
+  opensAt: envInt("BUSINESS_OPENS_HOUR", 0),
+  closesAt: envInt("BUSINESS_CLOSES_HOUR", 24),
   timezone: env("BUSINESS_TIMEZONE", "America/Bogota"),
 
   deliveryFee: envInt("DELIVERY_FEE", 5000),
@@ -64,4 +77,15 @@ export function isOpenNow(now: Date = new Date()) {
   );
 
   return hour >= BUSINESS.opensAt && hour < BUSINESS.closesAt;
+}
+
+/**
+ * ¿El negocio no cierra nunca?
+ *
+ * Lo preguntan las pantallas que muestran "cierra a las X": con 0–24 esa
+ * frase sale como "cierra a las 12 a.m.", que se lee como un error. Cuando
+ * esto es cierto dicen "24 horas" y ya.
+ */
+export function isAlwaysOpen() {
+  return BUSINESS.opensAt <= 0 && BUSINESS.closesAt >= 24;
 }

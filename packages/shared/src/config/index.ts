@@ -1,1 +1,1 @@
-export { BUSINESS, isOpenNow } from "./business-info";
+export { BUSINESS, isAlwaysOpen, isOpenNow } from "./business-info";
