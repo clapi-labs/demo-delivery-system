@@ -271,3 +271,58 @@ complementa. Un número que no esté en esa lista (administrada en el panel de
 Meta de quien controla la app — Qanelo, no este repo) no recibe respuesta del
 bot aunque `BOT_ACTIVE=true` y nginx apunten acá. Para que un prospecto nuevo
 pruebe hace falta las dos cosas: la rotación Y estar en esa lista.
+
+---
+
+## ADR-12 · Un módulo de asignación, dos formas de repartir
+
+**Fecha:** 2026-09-27 · **Estado:** aceptada
+
+Una plataforma que automatiza domicilios tiene que responder quién lleva el
+pedido. El sistema no lo hacía: el pedido llegaba a *Enviado* y lo que pasaba
+después vivía en el WhatsApp personal del dueño.
+
+**Decisión.** Un solo módulo con dos tipos de proveedor:
+
+- **Domiciliario propio** (`internal`). El sistema le manda la ficha por
+  WhatsApp y él marca la entrega desde un link firmado.
+- **Flota externa** (`agency`). El sistema **no le escribe**: redacta la ficha
+  y le abre al cajero el chat de la agencia con el texto puesto (`wa.me`).
+
+Una sola tabla `couriers` con una columna `kind`, no dos tablas: para el
+pedido son lo mismo —alguien a quien se le entrega y a quien se le manda una
+ficha—, y separarlos obligaría a unir o a duplicar cada consulta del tablero y
+del arqueo sin ganar nada.
+
+**Por qué el sistema no le escribe a la agencia.** No es una limitación que se
+pueda programar alrededor: la línea de la Cloud API está **dedicada al bot que
+atiende a los clientes**. Escribirle a una agencia desde ahí significaría (a)
+que la agencia reciba mensajes del número del restaurante sin poder distinguir
+si es un cliente o el local, y (b) que el restaurante no pueda contestarle a
+mano desde su celular, porque esa línea no se maneja desde WhatsApp normal.
+Encima, la ventana de 24 h de Meta no deja escribirle primero a quien no ha
+escrito, así que el mensaje se rechazaría de todas formas.
+
+El atajo `wa.me` resuelve las tres cosas a la vez: sale del WhatsApp del
+restaurante (el que la agencia ya conoce), la conversación queda donde
+siempre, y el cajero pasa de escribir una dirección a mano —dos minutos, con
+errores de tipeo en la mitad de las cuadras— a dar un toque y enviar.
+
+**Consecuencia para el domiciliario propio.** La misma ventana de 24 h aplica:
+si nunca le escribió al bot, Meta rechaza el aviso. Eso **no se trata como un
+error**: el portal traduce el motivo ("pídele que le mande cualquier mensaje al
+bot") y ofrece el mismo atajo `wa.me` de las agencias. Un camino que funciona
+siempre y uno que funciona solo si la ventana está abierta, con el primero como
+respaldo del segundo.
+
+**Consecuencia para el arqueo.** La fila de `deliveries` **congela** el nombre
+y la modalidad de cobro, igual que `order_items` congela el nombre del
+producto (ADR-02 es del mismo espíritu): borrar un domiciliario no puede
+reescribir el cierre de turno de la semana pasada.
+
+**Lo que NO se hizo.** Ni rastreo en vivo de la moto, ni asignación automática
+por cercanía, ni una app para el domiciliario. Lo primero exige que él tenga
+la pantalla abierta gastando datos y batería; lo segundo, geocodificar
+direcciones colombianas escritas a mano ("Cra 119A #60B-75, barrio Cachipay"),
+que es un problema mucho más grande que el que resuelve; lo tercero, que
+alguien instale algo. El link firmado sin contraseña es lo que sí se usa.

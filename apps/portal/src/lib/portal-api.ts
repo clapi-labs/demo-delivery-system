@@ -13,10 +13,21 @@
  * falla, basta con lanzar el error y el provider correspondiente revierte.
  */
 
-import { demoConversations, demoIncomingOrder, demoMenu, demoOrders, demoPromotions } from "./demo-data";
+import { dispatchTicket } from "@sistema/shared";
+
+import {
+  demoConversations,
+  demoCouriers,
+  demoIncomingOrder,
+  demoMenu,
+  demoOrders,
+  demoPromotions,
+  demoSettlement,
+} from "./demo-data";
 import type { InboxConversation, InboxMessage } from "./inbox";
+import type { Courier, NotifyResult, Settlement } from "./logistics";
 import type { MenuCategory, MenuProduct, Promotion } from "./menu";
-import type { OrderStatus, PortalOrder } from "./orders";
+import type { OrderDelivery, OrderStatus, PortalOrder } from "./orders";
 
 /**
  * Modo demostración: pedidos ficticios en memoria en vez de Neon. Para grabar
@@ -66,6 +77,237 @@ export async function updateOrderStatus(orderId: number, status: OrderStatus): P
     body: JSON.stringify({ orderId, status }),
   });
   if (!res.ok) throw new Error(`POST /api/orders → ${res.status}`);
+}
+
+// --- Repartidores (conectado) ------------------------------------------------
+
+let demoCourierStore: Courier[] | null = null;
+
+/** La libreta, con los inactivos incluidos: esta pantalla es de administración. */
+export async function fetchCouriers(): Promise<{ couriers: Courier[]; linksReady: boolean }> {
+  if (DEMO_MODE) {
+    demoCourierStore ??= demoCouriers();
+    return { couriers: demoCourierStore.map((c) => ({ ...c })), linksReady: true };
+  }
+
+  const res = await fetch("/api/couriers", { cache: "no-store" });
+  if (!res.ok) throw new Error(`GET /api/couriers → ${res.status}`);
+  return (await res.json()) as { couriers: Courier[]; linksReady: boolean };
+}
+
+async function postCouriers(body: Record<string, unknown>): Promise<{ courier?: Courier }> {
+  const res = await fetch("/api/couriers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; courier?: Courier }
+    | null;
+  if (!res.ok || !data?.ok) throw new Error(data?.error ?? `POST /api/couriers → ${res.status}`);
+  return data;
+}
+
+/** Crear o editar. Devuelve la fila como quedó en la base: al crear, el id de
+ *  verdad lo pone Postgres y la pantalla tiene que quedarse con ese. */
+export async function saveCourier(courier: Omit<Courier, "driverUrl">): Promise<Courier> {
+  if (DEMO_MODE) {
+    await later();
+    demoCourierStore ??= demoCouriers();
+    const id = courier.id || Math.max(0, ...demoCourierStore.map((c) => c.id)) + 1;
+    const saved: Courier = { ...courier, id, driverUrl: courier.kind === "internal" ? `https://ejemplo.com/repartidor?t=demo-${id}` : null };
+    demoCourierStore = courier.id
+      ? demoCourierStore.map((c) => (c.id === id ? saved : c))
+      : [...demoCourierStore, saved];
+    return saved;
+  }
+
+  const data = await postCouriers({ action: "save", courier });
+  if (!data.courier) throw new Error("save_failed");
+  return data.courier;
+}
+
+export async function setCourierActive(courierId: number, active: boolean): Promise<void> {
+  if (DEMO_MODE) {
+    await later(150);
+    demoCourierStore = (demoCourierStore ?? demoCouriers()).map((c) =>
+      c.id === courierId ? { ...c, active } : c,
+    );
+    return;
+  }
+  await postCouriers({ action: "active", courierId, active });
+}
+
+export async function deleteCourier(courierId: number): Promise<void> {
+  if (DEMO_MODE) {
+    await later();
+    demoCourierStore = (demoCourierStore ?? demoCouriers()).filter((c) => c.id !== courierId);
+    return;
+  }
+  await postCouriers({ action: "delete", courierId });
+}
+
+// --- Asignación de pedidos (conectado) ---------------------------------------
+
+async function postDeliveries(body: Record<string, unknown>) {
+  const res = await fetch("/api/deliveries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; delivery?: OrderDelivery; result?: NotifyResult; ticket?: string }
+    | null;
+  if (!res.ok || !data?.ok) throw new Error(data?.error ?? `POST /api/deliveries → ${res.status}`);
+  return data;
+}
+
+/**
+ * Asignar (o reasignar) quién lleva el pedido.
+ *
+ * Devuelve también **la ficha ya redactada**. Se compone en el servidor porque
+ * lleva el nombre y la dirección del negocio, que están en variables de
+ * entorno que el navegador no ve; armarla acá saldría con los valores por
+ * defecto. En modo demostración sí se arma local: no hay servidor que
+ * preguntarle.
+ */
+export async function assignDelivery(
+  orderId: number,
+  courier: Courier,
+  opts: { paymentMode?: string | null; vehicleCode?: string | null } = {},
+): Promise<{ delivery: OrderDelivery; ticket: string }> {
+  const local: OrderDelivery = {
+    courierId: courier.id,
+    courierName: courier.name,
+    kind: courier.kind,
+    paymentMode:
+      courier.kind === "agency"
+        ? ((opts.paymentMode as OrderDelivery["paymentMode"]) ?? courier.paymentMode ?? "cash_base")
+        : null,
+    vehicleCode: opts.vehicleCode?.trim() || null,
+    notifiedAt: null,
+    dispatchedAt: null,
+    deliveredAt: null,
+  };
+
+  if (DEMO_MODE) {
+    await later();
+    demoStore = (demoStore ?? []).map((o) => (o.id === orderId ? { ...o, delivery: local } : o));
+    const order = (demoStore ?? []).find((o) => o.id === orderId);
+    const ticket = order
+      ? dispatchTicket(
+          {
+            code: order.code,
+            customerName: order.customerName,
+            phone: order.phone,
+            address: order.address,
+            addressNotes: order.addressNotes,
+            total: order.total,
+            paymentMethod: order.paymentMethod,
+            items: order.items.map((i) => ({ quantity: i.quantity, name: i.name })),
+          },
+          courier,
+          local.paymentMode,
+        )
+      : "";
+    return { delivery: local, ticket };
+  }
+
+  const data = await postDeliveries({ action: "assign", orderId, courierId: courier.id, ...opts });
+  return { delivery: data.delivery ?? local, ticket: data.ticket ?? "" };
+}
+
+/** El número de la moto que contesta la agencia en el chat. */
+export async function setDeliveryVehicle(orderId: number, vehicleCode: string): Promise<void> {
+  if (DEMO_MODE) {
+    await later(150);
+    demoStore = (demoStore ?? []).map((o) =>
+      o.id === orderId && o.delivery ? { ...o, delivery: { ...o.delivery, vehicleCode: vehicleCode || null } } : o,
+    );
+    return;
+  }
+  await postDeliveries({ action: "vehicle", orderId, vehicleCode });
+}
+
+/**
+ * Le pide al bot que le mande la ficha al domiciliario propio.
+ *
+ * **No lanza si no se pudo enviar**: devuelve el motivo. La ventana de 24 h
+ * cerrada es el caso normal con un domiciliario que nunca le escribió al bot,
+ * y la pantalla responde ofreciendo el atajo de WhatsApp en vez de un error.
+ */
+export async function notifyCourier(
+  orderId: number,
+  courier: Courier,
+): Promise<{ result: NotifyResult; ticket: string }> {
+  if (DEMO_MODE) {
+    await later(400);
+    demoStore = (demoStore ?? []).map((o) =>
+      o.id === orderId && o.delivery
+        ? { ...o, delivery: { ...o.delivery, notifiedAt: new Date().toISOString() } }
+        : o,
+    );
+    return { result: { sent: true }, ticket: "" };
+  }
+
+  const data = await postDeliveries({ action: "notify", orderId, courierId: courier.id });
+  return { result: data.result ?? { sent: false, reason: "failed" }, ticket: data.ticket ?? "" };
+}
+
+/**
+ * La ficha de una asignación que ya existe.
+ *
+ * Sirve para volver a abrir la hoja de un pedido ya asignado sin reasignarlo:
+ * el texto lo redacta el servidor, igual que al asignar.
+ */
+export async function fetchTicket(orderId: number): Promise<{ ticket: string; courierGone: boolean }> {
+  if (DEMO_MODE) {
+    await later(150);
+    const order = (demoStore ?? []).find((o) => o.id === orderId);
+    const courier = (demoCourierStore ?? demoCouriers()).find((c) => c.id === order?.delivery?.courierId);
+    if (!order || !courier) return { ticket: "", courierGone: true };
+    return {
+      ticket: dispatchTicket(
+        {
+          code: order.code,
+          customerName: order.customerName,
+          phone: order.phone,
+          address: order.address,
+          addressNotes: order.addressNotes,
+          total: order.total,
+          paymentMethod: order.paymentMethod,
+          items: order.items.map((i) => ({ quantity: i.quantity, name: i.name })),
+        },
+        courier,
+        order.delivery?.paymentMode ?? null,
+      ),
+      courierGone: false,
+    };
+  }
+
+  const res = await fetch("/api/deliveries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "ticket", orderId }),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { ok?: boolean; ticket?: string; courierGone?: boolean }
+    | null;
+  if (!res.ok || !data?.ok) return { ticket: "", courierGone: true };
+  return { ticket: data.ticket ?? "", courierGone: Boolean(data.courierGone) };
+}
+
+/** El cierre de turno de hoy (RF-54). */
+export async function fetchSettlement(): Promise<Settlement[]> {
+  if (DEMO_MODE) {
+    await later(150);
+    return demoSettlement(demoStore ?? demoOrders());
+  }
+
+  const res = await fetch("/api/deliveries", { cache: "no-store" });
+  if (!res.ok) throw new Error(`GET /api/deliveries → ${res.status}`);
+  const data = (await res.json()) as { settlement: Settlement[] };
+  return data.settlement;
 }
 
 // --- Conversaciones (conectado) ----------------------------------------------

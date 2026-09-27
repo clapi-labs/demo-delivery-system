@@ -1,4 +1,4 @@
-import { formatPhone, type PaymentMethod } from "@sistema/shared";
+import { formatPhone, type CourierKind, type CourierPayment, type PaymentMethod } from "@sistema/shared";
 
 /**
  * Pedidos del lado del navegador: tipos, el flujo de estados y cómo se
@@ -22,12 +22,27 @@ export type PortalOrder = {
   phone: string | null;
   customerName: string | null;
   address: string | null;
+  addressNotes: string | null;
   paymentMethod: PaymentMethod | null;
   subtotal: number;
   deliveryFee: number;
   total: number;
   createdAt: string;
   items: PortalOrderLine[];
+  /** Quién lo lleva. `null` mientras nadie lo haya asignado (RF-50). */
+  delivery: OrderDelivery | null;
+};
+
+/** La asignación logística de un pedido, serializada. */
+export type OrderDelivery = {
+  courierId: number | null;
+  courierName: string;
+  kind: CourierKind;
+  paymentMode: CourierPayment | null;
+  vehicleCode: string | null;
+  notifiedAt: string | null;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
 };
 
 /** Un renglón del pedido. La foto y la categoría salen del catálogo (el

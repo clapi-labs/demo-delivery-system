@@ -2,7 +2,7 @@
 
 > La lectura más importante al empezar una sesión.
 
-**Última actualización:** 2026-09-24
+**Última actualización:** 2026-09-27
 
 ---
 
@@ -20,10 +20,10 @@ bandeja (RF-33 a RF-36) y los avisos de cambio de estado del pedido
 
 **El bloqueo de Meta se resolvió, pero distinto a lo planeado: número
 compartido con Qanelo por rotación manual, no un número propio (ADR-11).**
-El código ya tiene el candado (`BOT_ACTIVE`) y el webhook responde rápido
-(`after()`); lo que falta es operativo, no de código: conseguir los cuatro
-valores `WHATSAPP_*`, desplegar (Fase 6) para tener una URL real que darle a
-la rotación, y coordinar el cambio. Ver la sección de más abajo.
+El candado (`BOT_ACTIVE`) y el webhook rápido (`after()`) están en el código,
+las tres apps están en Vercel y la rotación ya se coordinó: entran pedidos de
+verdad desde un celular y salen los avisos por WhatsApp. Ver la sección de
+más abajo para el procedimiento de la rotación.
 
 Falta la transcripción de voz (RF-14, bloqueada por lo mismo hasta que haya
 tráfico real de Meta), crear/editar productos desde el portal (necesita dónde
@@ -37,7 +37,8 @@ guardar la foto) y los comprobantes de pago (RF-37 a RF-39).
 | 3 · Motor del asistente | ✅ lo determinista y el asesor con modelo (OpenAI real); ⬜ la voz — falta `services/whatsapp/media.ts` + Whisper, y tráfico real de Meta para probarlo |
 | 4 · Menú público | ✅ catálogo, carrito, personalización, envío del pedido y el endpoint interno del bot que lo recibe |
 | 5 · Portal y bandeja | ✅ Pedidos, Conversaciones y Menú sobre Neon; outbox de avisos (RF-30/31) verificado con WhatsApp real; ⬜ crear/editar productos (falta almacenamiento de imágenes) y los comprobantes (RF-37 a RF-39) |
-| 6 · Despliegue y video | ⬜ Ahora es el siguiente paso obligado: sin URL pública no hay a quién rotarle el webhook |
+| 6 · Despliegue y video | ✅ las tres apps en Vercel y el webhook rotado: entran pedidos reales desde un celular. Falta grabar el video |
+| 7 · Domicilios | 🟡 en la rama `domicilios`: libreta de repartidores, asignación desde la comanda, ficha por WhatsApp, pantalla del repartidor y cierre de turno (RF-49 a RF-54). Falta probarlo con un domiciliario de verdad |
 
 ---
 
@@ -698,6 +699,79 @@ El detalle de un pedido tenía todo junto y sin jerarquía. Qué cambió, en
   por props, como el horario: `Dashboard` es un componente de cliente y no
   puede leer `process.env`. Se multiplica por los pedidos **atendidos**, los
   mismos que suman en el número de arriba (los cancelados no cuentan).
+
+---
+
+## Fase 7 · Domicilios: quién lleva el pedido (2026-09-27, rama `domicilios`)
+
+El sistema automatizaba el pedido hasta *Enviado* y ahí se caía: lo que pasaba
+después —a quién se le da, cuánto cobra, si ya llegó— vivía en el WhatsApp
+personal del dueño. Esta fase lo cierra. **La decisión de fondo está en
+ADR-12**; acá queda lo que hay que saber para trabajar sobre esto.
+
+### Dos formas de repartir, un solo módulo
+
+| | Domiciliario propio | Flota externa |
+|---|---|---|
+| Quién le escribe | El sistema, por la Cloud API | El restaurante, desde su WhatsApp |
+| Cómo | `POST /api/internal/notify` en el bot | Un enlace `wa.me` con la ficha puesta |
+| Quién marca la entrega | Él, desde `/repartidor?t=…` | El cajero, en el tablero |
+| Qué se anota | — | El número de la moto que contesta la agencia |
+
+**Por qué el sistema no le escribe a la agencia:** la línea de la Cloud API es
+del bot que atiende clientes; el restaurante no puede chatear a mano desde
+ahí, y la ventana de 24 h rechazaría el mensaje igual. El atajo `wa.me` sale
+del WhatsApp que la agencia ya conoce. Ver ADR-12.
+
+**La ventana de 24 h también aplica al propio.** Si nunca le escribió al bot,
+Meta rechaza el aviso: el portal traduce el motivo y ofrece el mismo atajo
+`wa.me`. Verificado en local contra el bot real: devuelve `window_closed`, no
+un error.
+
+### Lo que se agregó
+
+- **Base:** `couriers` (una tabla con `kind`, no dos) y `deliveries` (una fila
+  por pedido, índice único). La fila **congela** nombre, tipo y modalidad de
+  cobro: borrar un repartidor no puede reescribir el arqueo de ayer.
+- **`packages/shared`:** `domain/delivery.ts` (la ficha y el atajo `wa.me`),
+  `domain/courier-token.ts`, `domain/business-day.ts` ("hoy" en la zona del
+  negocio, no del servidor) y `db/queries/logistics.ts`. La firma HMAC salió a
+  `domain/signed-token.ts`, que ahora comparten el token del menú y el del
+  repartidor.
+- **Portal:** pantalla **Domicilios** (libreta + cierre de turno), hoja de
+  asignación en la comanda, y `/repartidor` — que queda **fuera** de
+  `AppProviders` y del marco (`AppShell`) a propósito: es el celular de otra
+  persona, no tiene por qué bajarse la lista de pedidos ni los chats.
+- **Bot:** `POST /api/internal/notify`, el aviso operativo a un tercero.
+  Aparte de `internal/send` porque ese exige conversación de cliente y pausa
+  el bot en ella; este no la exige, y si existe la deja pausada para que un
+  "voy" del domiciliario no reciba el menú.
+- **`applyOrderStatus`** (`src/server/order-status.ts`): el cambio de estado
+  salió de la ruta para que el tablero y la pantalla del repartidor usen el
+  mismo camino. Así marcar entregado desde la calle le avisa al cliente igual
+  que si lo hiciera el cajero.
+- **`npm run verify:delivery`:** 30 comprobaciones sin base de datos, sobre lo
+  que se rompe en silencio (la línea del dinero de la ficha, el token, el día
+  del negocio).
+
+### Dos cosas que hay que llenar antes de usarlo en serio
+
+1. **`BUSINESS_ADDRESS`** en el entorno del portal. Es el "recoger en" de la
+   ficha de la agencia. Sin ella la ficha lo advierte en su lugar (se ve en
+   pantalla antes de enviar), pero hay que ponerla.
+2. **`MENU_TOKEN_SECRET`** (o `COURIER_TOKEN_SECRET`) en el portal, que firma
+   el link del repartidor. Sin ninguno de los dos, la pantalla de Domicilios
+   lo dice y no genera links; todo lo demás funciona.
+
+### Cómo se probó
+
+En local contra Neon real: asignar a propio y a agencia, la ficha con el
+dinero correcto en los cuatro casos (efectivo, ya pagó, a cuenta, sin
+confirmar), el aviso al propio devolviendo `window_closed` del bot real, la
+pantalla del repartidor con token válido, **403 al intentar cerrar el pedido de
+otro**, marcar entregado sellando hora y dejando el pedido en *Entregado*, y
+el cierre de turno cuadrando. Con un pedido de prueba sin teléfono, para que
+ningún cliente recibiera nada; borrado al terminar.
 
 ---
 

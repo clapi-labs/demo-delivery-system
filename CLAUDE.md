@@ -76,7 +76,7 @@ Drizzle + Neon Postgres · WhatsApp Cloud API · OpenAI `gpt-4o-mini` · Vercel.
 apps/
   bot/      webhook de Meta, motor del asistente, ÚNICO camino de envío
   menu/     catálogo público
-  portal/   pedidos + bandeja de conversaciones
+  portal/   pedidos + bandeja + domicilios (y la pantalla del repartidor)
 packages/
   shared/   esquema, tipos, catálogo, token del menú, ventana de 24 h
 docs/       fuente de verdad
@@ -91,6 +91,7 @@ scripts/    verificaciones
 | `npm run build` | Compila las tres apps |
 | `npm run verify` | Token, ventana de 24 h, código de pedido, formato |
 | `npm run verify:promotions` | El precio con promoción (RN-10), contra el catálogo real |
+| `npm run verify:delivery` | La ficha del repartidor, el link firmado y el día del negocio |
 | `npm run db:push` | Aplica el esquema |
 | `npm run db:studio` | Explorador de la base |
 

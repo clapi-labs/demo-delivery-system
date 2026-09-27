@@ -419,6 +419,45 @@ export type SeedPromotion = {
   active?: boolean;
 };
 
+/**
+ * Quién reparte (RF-49).
+ *
+ * Dos propios y una agencia a propósito: es el escenario real de un negocio de
+ * barrio —tiene sus motos y llama a una flota cuando se le llenan— y es lo que
+ * hay que poder mostrar en el video. Los teléfonos son inventados; el de la
+ * agencia es el que abre el chat con el texto puesto, así que en la demo hay
+ * que cambiarlo por uno de verdad para que el botón haga algo.
+ */
+export type SeedCourier = {
+  kind: "internal" | "agency";
+  name: string;
+  phone: string;
+  paymentMode?: "cash_base" | "account";
+  notes?: string;
+};
+
+export const COURIERS: SeedCourier[] = [
+  {
+    kind: "internal",
+    name: "Carlos Pérez",
+    phone: "573001112244",
+    notes: "Turno de la tarde. Moto propia.",
+  },
+  {
+    kind: "internal",
+    name: "Andrés Mina",
+    phone: "573155556611",
+    notes: "Turno de la noche.",
+  },
+  {
+    kind: "agency",
+    name: "Bejarano Mensajería",
+    phone: "573112223300",
+    paymentMode: "cash_base",
+    notes: "Central de despacho. Responden con el número de la moto.",
+  },
+];
+
 export const PROMOTIONS: SeedPromotion[] = [
   {
     name: "Hora feliz de hamburguesas",

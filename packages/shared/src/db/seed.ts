@@ -1,8 +1,8 @@
 import { inArray } from "drizzle-orm";
 
-import { CATALOG, PROMOTIONS } from "./seed-data";
+import { CATALOG, COURIERS, PROMOTIONS } from "./seed-data";
 import { db } from "./client";
-import { categories, optionGroups, options, products, promotions } from "./schema";
+import { categories, couriers, optionGroups, options, products, promotions } from "./schema";
 
 /**
  * Carga el catálogo del restaurante (RF-03).
@@ -115,4 +115,30 @@ export async function seedPromotions() {
       sortOrder: index,
     });
   }
+}
+
+/**
+ * Carga la libreta de repartidores (RF-49).
+ *
+ * **No borra lo que ya hay**: a diferencia del catálogo, esta tabla la edita
+ * el restaurante desde el portal, y sembrar no puede llevarse por delante al
+ * domiciliario que alguien registró ayer. Siembra solo si está vacía, así que
+ * correrlo dos veces no duplica a nadie.
+ */
+export async function seedCouriers() {
+  const existing = await db.select({ id: couriers.id }).from(couriers).limit(1);
+  if (existing.length > 0) return { seeded: 0 };
+
+  for (const [index, courier] of COURIERS.entries()) {
+    await db.insert(couriers).values({
+      kind: courier.kind,
+      name: courier.name,
+      phone: courier.phone,
+      paymentMode: courier.kind === "agency" ? (courier.paymentMode ?? "cash_base") : null,
+      notes: courier.notes ?? null,
+      sortOrder: index,
+    });
+  }
+
+  return { seeded: COURIERS.length };
 }
