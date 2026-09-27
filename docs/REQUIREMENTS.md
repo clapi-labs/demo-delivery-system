@@ -85,6 +85,19 @@
 | RF-54 | Cierre de turno: quién llevó qué y cómo se cobra | ✅ pestaña "Cierre de turno": entregas, efectivo recogido y lo que queda a cuenta de cada agencia, sobre el día del negocio (no el del servidor) |
 | RF-55 | Rastreo en vivo de la moto | ⬜ no se hará en la demo (ADR-12) |
 
+## Fase 8 · Pedidos por llamada (ADR-13)
+
+| ID | Requerimiento | Estado |
+|---|---|---|
+| RF-56 | El agente de voz lee el catálogo real, sin base de datos propia | ✅ `GET /api/internal/catalog` en `apps/menu`: precio de hoy ya resuelto (`priceNow`), agotados incluidos con `available:false`, grupos obligatorios marcados |
+| RF-57 | Un pedido cerrado por llamada aparece en el portal | ✅ `POST /api/internal/voice-order`: entra en `pending` con `source="call"`; el precio lo recalcula el servidor (RN-14) |
+| RF-58 | La misma llamada no puede crear dos comandas | ✅ `orders.source_ref` con índice único (el `room_name` de LiveKit); el segundo intento devuelve el mismo pedido con `duplicated:true` |
+| RF-59 | Si el sistema de pedidos está caído, la llamada no arranca | ✅ `GET /api/health` en el menú consulta el catálogo de verdad; la página del agente lo llama al cargar y manda al WhatsApp real |
+| RF-60 | El portal muestra de dónde vino el pedido | ✅ badge **📞 Llamada** junto al código en la comanda |
+| RF-61 | Telefonía real con número colombiano (SIP) | ⬜ trámite con operador, no código (ADR-13) |
+
+---
+
 ## Despliegue · Fase 6
 
 | ID | Requerimiento | Estado |
@@ -101,7 +114,7 @@
 |---|---|
 | RN-01 | Un código de pedido se canjea **una sola vez** |
 | RN-02 | El precio se resuelve contra la base, nunca contra el link o el navegador |
-| RN-03 | Un pedido sin `source = "menu"` y sin canjear no se registra jamás |
+| RN-03 | Un pedido **por chat** no existe: sin `source` válido y sin canjear no se registra. La única excepción es `source = "call"` (ADR-13), donde el pedido lo arma el sistema |
 | RN-04 | Con el asistente pausado, no responde **nada** en esa conversación |
 | RN-05 | Todo mensaje saliente pasa por `apps/bot`. No hay segundo camino |
 | RN-06 | Tope de 10 productos distintos por link `?add=` |
@@ -112,3 +125,4 @@
 | RN-11 | Un pedido tiene **un solo** responsable: reasignar sustituye la fila de `deliveries`, no agrega otra (lo garantiza un índice único) |
 | RN-12 | La ficha del repartidor se redacta en el servidor: lleva el nombre y la dirección del negocio, que el navegador no conoce |
 | RN-13 | El sistema **no le escribe a una flota externa**. Esa conversación sale del WhatsApp del restaurante (ADR-12) |
+| RN-14 | Un pedido por llamada lo **construye el sistema**, no el modelo: el agente solo pasa SKUs, ids de opción y cantidades (ADR-13) |

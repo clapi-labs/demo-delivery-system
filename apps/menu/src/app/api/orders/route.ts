@@ -2,21 +2,13 @@ import { NextResponse } from "next/server";
 
 import {
   BUSINESS,
-  findBySku,
+  buildOrderLines,
   generateOrderCode,
   isPaymentMethod,
-  priceLine,
-  resolveOptions,
+  parseRawLines,
   verifyMenuToken,
 } from "@sistema/shared";
-import {
-  db,
-  getCatalog,
-  getPromotions,
-  orderItems,
-  orders,
-  type SelectedOption,
-} from "@sistema/shared/db";
+import { db, getCatalog, getPromotions, orderItems, orders } from "@sistema/shared/db";
 
 import { env } from "@/env";
 
@@ -40,17 +32,14 @@ import { env } from "@/env";
  * sigue existiendo y el cliente puede confirmarlo a mano.
  */
 
-type RequestItem = { sku?: unknown; optionIds?: unknown; quantity?: unknown };
 type RequestBody = {
-  items?: RequestItem[];
+  items?: unknown;
   token?: string | null;
   customerName?: unknown;
   address?: unknown;
   paymentMethod?: unknown;
 };
 
-const MAX_LINES = 20;
-const MAX_QUANTITY = 20;
 const MAX_TEXT = 300;
 
 /** Recorta y limpia un texto libre del cliente. `null` si quedó vacío. */
@@ -62,7 +51,7 @@ function cleanText(value: unknown): string | null {
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as RequestBody | null;
-  const rawItems = Array.isArray(body?.items) ? body.items : [];
+  const rawItems = parseRawLines(body?.items);
 
   if (rawItems.length === 0) {
     return NextResponse.json({ error: "carrito vacío" }, { status: 400 });
@@ -84,65 +73,20 @@ export async function POST(request: Request) {
 
   const [catalog, promotions] = await Promise.all([getCatalog(), getPromotions()]);
 
-  // Un solo instante para todo el pedido: uno enviado a las 5:59:59 no puede
-  // tener una línea dentro de la hora feliz y la siguiente fuera.
-  const now = new Date();
+  // `buildOrderLines` resuelve los precios contra la base (RN-02) y devuelve
+  // aparte lo que no se pudo cobrar. Acá esas listas se **ignoran** a
+  // propósito: el cliente está mirando la pantalla y ve que el producto
+  // agotado desapareció de su carrito. El endpoint de voz hace lo contrario
+  // (ahí nadie está mirando nada), y por eso la decisión es del llamador.
+  const { lines: itemsToInsert, subtotal } = buildOrderLines(catalog, promotions, rawItems);
 
-  const lines: {
-    product: ReturnType<typeof findBySku>;
-    optionIds: number[];
-    quantity: number;
-  }[] = [];
-
-  for (const raw of rawItems.slice(0, MAX_LINES)) {
-    if (typeof raw.sku !== "string") continue;
-    const quantity = Math.floor(Number(raw.quantity));
-    if (!Number.isFinite(quantity) || quantity < 1 || quantity > MAX_QUANTITY) continue;
-
-    const product = findBySku(catalog, raw.sku);
-    if (!product || !product.available) continue;
-
-    const optionIds = Array.isArray(raw.optionIds)
-      ? raw.optionIds.filter((id): id is number => typeof id === "number")
-      : [];
-
-    lines.push({ product, optionIds, quantity });
-  }
-
-  if (lines.length === 0) {
+  if (itemsToInsert.length === 0) {
     return NextResponse.json(
       { error: "ninguno de los productos sigue disponible" },
       { status: 400 },
     );
   }
 
-  const itemsToInsert = lines.map(({ product, optionIds, quantity }) => {
-    // El precio lo decide `priceLine`, la misma función que usa el carrito en
-    // el navegador — por eso el cliente no puede ver un total y pagar otro.
-    // Las promociones se aplican acá, contra la base, nunca contra lo que
-    // mande el navegador (RN-02).
-    const priced = priceLine(product!, optionIds, quantity, promotions, now);
-    const selectedOptions: SelectedOption[] = resolveOptions(product!, optionIds).map(
-      (o) => ({ group: o.groupName, name: o.name, priceDelta: o.priceDelta }),
-    );
-    // El nombre congela también la promoción: dentro de un mes, quien mire
-    // este pedido tiene que poder explicar por qué costó menos de lo que
-    // dice la carta de hoy.
-    const nameSnapshot = priced.promotion
-      ? `${product!.name} (${priced.promotion.name})`
-      : product!.name;
-
-    return {
-      productId: product!.id,
-      nameSnapshot,
-      unitPrice: priced.unitPrice,
-      quantity,
-      selectedOptions,
-      lineTotal: priced.lineTotal,
-    };
-  });
-
-  const subtotal = itemsToInsert.reduce((sum, i) => sum + i.lineTotal, 0);
   const deliveryFee = BUSINESS.deliveryFee;
   const total = subtotal + deliveryFee;
 

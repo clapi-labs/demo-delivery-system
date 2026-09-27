@@ -1,4 +1,5 @@
 import { BUSINESS } from "../config/business-info";
+import { formatCOP } from "./format";
 import type { OrderStatus } from "./order-status";
 
 /**
@@ -54,4 +55,36 @@ export function orderStatusMessage(status: OrderStatus, code: string): string | 
     default:
       return null;
   }
+}
+
+/**
+ * La confirmación escrita de un pedido que se tomó **hablando** (RF-58).
+ *
+ * Existe aparte de `orderStatusMessage` porque acá el aviso no es un cambio de
+ * estado: es el recibo de algo que el cliente solo escuchó. En una llamada no
+ * queda nada para revisar después —ni el total, ni la dirección que dictó— y
+ * eso es exactamente lo que la gente quiere volver a mirar. Por eso este texto
+ * repite el total y la dirección aunque el agente ya se los haya leído.
+ *
+ * Solo llega si ese número ya le había escrito al bot (ventana de 24 h de
+ * Meta). Si no, `enqueueOrderNotification` devuelve `false` y el pedido queda
+ * igual de completo en el portal: no es una falla, es cómo funciona WhatsApp.
+ */
+export function voiceOrderMessage(
+  code: string,
+  total: number,
+  address: string | null,
+): string {
+  const lineas = [
+    `📞 Recibimos tu pedido *${code}* por teléfono.`,
+    "",
+    `Total: *${formatCOP(total)}*`,
+  ];
+  if (address) lineas.push(`Entrega en: ${address}`);
+  lineas.push(
+    "",
+    `Ya está en la cocina y llega en aproximadamente ${BUSINESS.deliveryTime}. ` +
+      `Si algo de esto no quedó bien, respóndenos por este chat y lo corregimos.`,
+  );
+  return lineas.join("\n");
 }

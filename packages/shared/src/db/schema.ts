@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { CourierKind, CourierPayment } from "../domain/delivery";
-import type { OrderStatus } from "../domain/order-status";
+import type { OrderSource, OrderStatus } from "../domain/order-status";
 import type { PaymentMethod } from "../domain/payment";
 import type { PromotionKind, PromotionScope } from "../domain/promotions";
 
@@ -212,7 +212,7 @@ export const processedMessages = pgTable("processed_messages", {
 
 /** Definido en `domain/order-status.ts` — ver ahí por qué no vive en este
  *  archivo. Se reexporta para que `@sistema/shared/db` siga sirviéndolo. */
-export type { OrderStatus };
+export type { OrderSource, OrderStatus };
 
 export type SelectedOption = {
   group: string;
@@ -236,10 +236,24 @@ export const orders = pgTable(
 
     status: text("status").notNull().$type<OrderStatus>().default("draft"),
     /**
-     * Siempre "menu". Existe para que el candado —un pedido no puede nacer de
-     * una conversación— sea verificable en la base, no solo en el código.
+     * De dónde salió: `menu` (el camino de siempre) o `call` (el agente de voz,
+     * ADR-13). Existe para que el candado —un pedido no puede nacer de un chat—
+     * sea verificable en la base y no solo en el código.
      */
-    source: text("source").notNull().default("menu"),
+    source: text("source").notNull().$type<OrderSource>().default("menu"),
+    /**
+     * La referencia externa que identifica de dónde vino, cuando hay una: para
+     * una llamada es el `room_name` de LiveKit, único por llamada.
+     *
+     * Es la **idempotencia** de los pedidos por voz: el modelo invoca
+     * `confirm_order` dos veces de vez en cuando, y el segundo `INSERT` tiene
+     * que chocar con la base en vez de crear una comanda repetida en la cocina.
+     * Que lo garantice Postgres y no un `if`, igual que `deliveries_order_idx`.
+     *
+     * El índice único no necesita ser parcial: en Postgres dos `NULL` no
+     * colisionan, así que los pedidos del menú (todos con `NULL`) conviven.
+     */
+    sourceRef: text("source_ref"),
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
 
     customerName: text("customer_name"),
@@ -261,6 +275,7 @@ export const orders = pgTable(
   (t) => [
     index("orders_status_idx").on(t.status),
     index("orders_phone_idx").on(t.phone),
+    uniqueIndex("orders_source_ref_idx").on(t.sourceRef),
   ],
 );
 

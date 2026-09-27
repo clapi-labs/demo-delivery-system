@@ -17,3 +17,21 @@ export type OrderStatus =
   | "sent"
   | "delivered"
   | "cancelled";
+
+/**
+ * Por dónde entró el pedido.
+ *
+ * `menu` es el camino de siempre: el cliente armó el carrito en el navegador y
+ * el asistente canjeó el código. `call` es un pedido tomado por el agente de
+ * voz (ADR-13), y es la **única** excepción al candado de ADR-02 — existe como
+ * columna para que la excepción sea auditable en la base y no una suposición:
+ * si un pedido no nació del menú, la base dice de dónde vino.
+ *
+ * El chat de WhatsApp sigue sin poder crear pedidos. No hay valor para eso.
+ */
+export type OrderSource = "menu" | "call";
+
+export const ORDER_SOURCE_LABEL: Record<OrderSource, string> = {
+  menu: "Por el menú",
+  call: "Por llamada",
+};

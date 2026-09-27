@@ -70,6 +70,7 @@ function order(
     id,
     code,
     status,
+    source: "menu",
     phone,
     customerName,
     address,
@@ -82,6 +83,13 @@ function order(
     items,
     delivery: null,
   };
+}
+
+/** El mismo pedido, pero entrado por llamada. Existe para que el modo demo
+ *  muestre el badge de teléfono: es una de las cosas que hay que poder señalar
+ *  en pantalla sin tener el agente de voz corriendo. */
+function byCall(order: PortalOrder): PortalOrder {
+  return { ...order, source: "call" };
 }
 
 /** Una asignación de mentira, para ver la tarjeta con repartidor puesto. */
@@ -113,18 +121,18 @@ export function demoOrders(): PortalOrder[] {
       ["Papas con Queso y Tocineta", 1, 13000],
       ["Gaseosa 400 ml", 2, 4000, ["Cola"]],
     ]),
-    order(13, "HT7RWA", "pending", 7, "Diego Salazar", "573007778899", "Calle 63 #7-18", "efectivo", [
+    byCall(order(13, "HT7RWA", "pending", 7, "Diego Salazar", "573007778899", "Calle 63 #7-18", "efectivo", [
       ["Alitas x12", 1, 39500, ["BBQ", "Maracuyá picante"]],
       ["Limonada Natural", 1, 14000, ["Jarra"]],
-    ]),
+    ])),
     order(12, "P4NXJC", "pending", 12, "Camila Torres", "573008889900", "Carrera 30 #10-55, casa 4", "datafono", [
       ["Hamburguesa Vegetariana", 1, 17000, ["Papas rústicas"]],
       ["Malteada", 1, 12000, ["Fresa"]],
     ]),
-    order(11, "M2QYTE", "preparing", 16, "Andrea Gómez", "573004445566", "Transversal 21 #45-12", "efectivo", [
+    byCall(order(11, "M2QYTE", "preparing", 16, "Andrea Gómez", "573004445566", "Transversal 21 #45-12", "efectivo", [
       ["Costilla BBQ", 2, 24000, ["Bien asada"]],
       ["Aros de Cebolla", 1, 10000],
-    ]),
+    ])),
     order(10, "W9HKDR", "preparing", 24, "Santiago Vargas", "573009990011", "Calle 19 #4-22", "transferencia", [
       ["Pollo Broaster (1/4)", 3, 16000],
       ["Yuca Frita", 2, 9000],

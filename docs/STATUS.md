@@ -775,20 +775,65 @@ ningún cliente recibiera nada; borrado al terminar.
 
 ---
 
-## Pedidos por llamada: hay plan, no hay código (2026-09-27)
+## Fase 8 · Pedidos por llamada (2026-09-27, rama `llamadas`)
 
-Existe un agente de voz aparte (`demo-voice-agent`, rama `pedidos`) que ya
-toma pedidos hablando por LiveKit, desplegado en Railway. Falta conectarlo a
-este sistema para que un pedido cerrado por llamada aparezca en el portal.
+Un agente de voz aparte (`demo-voice-agent`, rama `brasa-y-pan`) toma pedidos
+hablando por LiveKit, y ahora esos pedidos **aterrizan en este portal** con su
+comanda, su cronómetro, su repartidor y su aviso al cliente. **La decisión de
+fondo está en ADR-13**, que reabre ADR-02 a propósito; el plan completo con el
+que se ejecutó quedó en [`PLAN_LLAMADAS.md`](PLAN_LLAMADAS.md).
 
-**El plan completo está en [`PLAN_LLAMADAS.md`](PLAN_LLAMADAS.md)** —
-arquitectura, los dos endpoints internos nuevos, los cambios en el repo de
-voz, los tres niveles de respaldo cuando algo falla, y el orden de ejecución.
+### El reparto de responsabilidades
 
-Lo único que hay que decidir antes de escribir una línea: **esto reabre
-ADR-02** ("un pedido no puede nacer de una conversación"). El plan explica por
-qué la voz es un caso distinto y propone ADR-13. Si eso no se aprueba, el
-resto del plan no aplica.
+El agente de voz **no tiene base de datos** y **no toca Neon**. Lee el catálogo
+por HTTP y manda referencias:
+
+| Endpoint (en `apps/menu`) | Para qué |
+|---|---|
+| `GET /api/internal/catalog` | El catálogo con `priceNow` ya resuelto por `priceLine()` |
+| `POST /api/internal/voice-order` | Crear el pedido: entra en `pending` con `source="call"` |
+| `GET /api/health` (público) | ¿Se pueden tomar pedidos? Lo llama la página antes de dejar hablar |
+
+**Por qué así y no copiando el catálogo al lado del agente:** dos catálogos se
+desincronizan, y marcar "agotado" en el portal no llegaría nunca a la llamada —
+el bot seguiría vendiendo por teléfono lo que la cocina ya no tiene.
+
+### Tres cosas que se rompen en silencio si se tocan
+
+1. **El modelo no calcula precios** (RN-14). Pasa SKUs, ids de opción y
+   cantidades; el total lo arma `buildOrderLines()`, que salió del endpoint del
+   menú a `packages/shared/src/domain/order-lines.ts` justamente para que los
+   dos caminos compartan la misma resolución de precios. **El total que se le
+   dice al cliente es el de la respuesta**, no el que sumó el agente: si una
+   promoción se vence en medio de la llamada, coinciden.
+2. **Idempotencia por índice único, no por `if`.** El `room_name` de LiveKit va
+   en `orders.source_ref`. El modelo invoca `confirm_order` dos veces de vez en
+   cuando; el segundo intento devuelve `200` con el mismo pedido y
+   `duplicated:true`.
+3. **Un agotado falla el pedido entero** (422 con la lista), al contrario del
+   menú, que descarta y sigue. Por eso `buildOrderLines` devuelve los rechazos
+   aparte en vez de decidir: el menú los ignora (el cliente ve la pantalla), la
+   voz los usa para que el agente diga "se me acabó la cerveza".
+   Lo mismo con `requireOptionGroups`: la voz exige el término de la carne, el
+   menú **no puede** exigirlo porque el link `?add=SKU:2` del bot no trae
+   opciones y rechazarlo dejaría al cliente con un carrito vacío.
+
+### Cómo se probó
+
+`npm run verify:voice-order` — 28 comprobaciones contra Neon real, con limpieza
+al final: el precio que manda el agente se ignora, la misma llamada dos veces
+no duplica, un producto agotado devuelve 422 sin crear nada, sin dirección o sin
+`callId` da 400, un secreto inválido da 401, y un pedido sin teléfono se toma
+igual avisando que el WhatsApp no se pudo encolar. `verify:menu-order` (19) y
+`verify:promotions` siguen pasando sin tocarlos: es la prueba de que el refactor
+no cambió el camino del menú.
+
+### Lo que hay que saber antes de mostrarlo
+
+El WhatsApp de confirmación después de una llamada **solo llega si ese número ya
+le había escrito al bot** (ventana de 24 h de Meta). Si no, el pedido queda
+igual de completo en el portal. Conviene decirlo antes, no que lo descubra el
+prospecto: no es una falla, es cómo funciona WhatsApp.
 
 ---
 

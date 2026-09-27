@@ -13,12 +13,18 @@ import { formatPhone, type CourierKind, type CourierPayment, type PaymentMethod 
  *  nunca ve borradores (ver `src/db/orders.ts`). */
 export type OrderStatus = "pending" | "preparing" | "sent" | "delivered" | "cancelled";
 
+/** Los mismos valores que `OrderSource` del esquema. Se repite acá por la
+ *  misma razón que `OrderStatus`: este módulo no puede importar de `db/`. */
+export type OrderSource = "menu" | "call";
+
 /** Lo que devuelve `GET /api/orders`: `PortalOrder` de `src/db/orders.ts`
  *  ya serializado (la fecha viaja como texto). */
 export type PortalOrder = {
   id: number;
   code: string;
   status: OrderStatus;
+  /** Por dónde entró: `menu` o `call` (ADR-13). */
+  source: OrderSource;
   phone: string | null;
   customerName: string | null;
   address: string | null;

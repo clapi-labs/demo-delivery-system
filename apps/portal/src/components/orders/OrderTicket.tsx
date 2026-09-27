@@ -242,7 +242,22 @@ export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onS
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-[15px] font-semibold tracking-title">{customerLabel(order)}</p>
-              <p className="mt-0.5 font-mono text-xs text-ink-3">#{order.code}</p>
+              <p className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-ink-3">
+                #{order.code}
+                {/* Un pedido por llamada se atiende distinto: el cliente no
+                    está en el chat, así que una duda con la dirección se
+                    resuelve llamándolo. La cocina tiene que verlo sin abrir
+                    la tarjeta (RF-60). */}
+                {order.source === "call" ? (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full bg-st-sent-soft px-1.5 py-px font-sans text-[11px] font-semibold text-st-sent-ink"
+                    title="Este pedido lo tomó el agente por teléfono"
+                  >
+                    <PhoneIcon className="h-3 w-3" />
+                    Llamada
+                  </span>
+                ) : null}
+              </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
               {active ? (

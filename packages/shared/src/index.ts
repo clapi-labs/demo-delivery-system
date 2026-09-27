@@ -5,6 +5,7 @@ export * from "./domain/delivery";
 export * from "./domain/format";
 export * from "./domain/menu-token";
 export * from "./domain/order-code";
+export * from "./domain/order-lines";
 export * from "./domain/order-notifications";
 export * from "./domain/order-status";
 export * from "./domain/payment";

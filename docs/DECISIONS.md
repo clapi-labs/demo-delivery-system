@@ -326,3 +326,63 @@ la pantalla abierta gastando datos y batería; lo segundo, geocodificar
 direcciones colombianas escritas a mano ("Cra 119A #60B-75, barrio Cachipay"),
 que es un problema mucho más grande que el que resuelve; lo tercero, que
 alguien instale algo. El link firmado sin contraseña es lo que sí se usa.
+
+---
+
+## ADR-13 · Un pedido por llamada sí puede nacer de una conversación
+
+**Fecha:** 2026-09-27 · **Estado:** aceptada · **Reabre:** ADR-02
+
+**ADR-02 dice que un pedido no puede nacer de una conversación**, y RN-03 lo
+repite: un pedido sin `source = "menu"` y sin canjear no se registra jamás.
+`bot/order-guard.ts` lo hace cumplir. Un pedido tomado por teléfono es,
+literalmente, un pedido nacido de una conversación, así que esto no se podía
+implementar sin reabrir esa decisión.
+
+**Por qué existe ADR-02.** En un chat de texto el modelo interpreta lo que el
+cliente escribe y puede equivocarse en el producto o en el precio sin que nadie
+lo note; el menú es la única fuente confiable de qué se pidió y cuánto vale. Y
+en un chat mandar el menú es gratis: es un link.
+
+**Por qué la voz es un caso distinto y no una excepción por conveniencia:**
+
+1. **El modelo nunca arma el pedido ni dice un precio propio.** Pasa SKUs, ids
+   de opción y cantidades; el precio, las promociones y el total los calcula
+   este sistema contra la base con `buildOrderLines()` → `priceLine()`, la misma
+   función del carrito del menú (RN-14). Es la protección que ADR-02 buscaba,
+   aplicada un nivel más abajo: un agente que se equivoque puede pedir el
+   producto errado, no inventar lo que cuesta.
+2. **Hay un paso de confirmación que el chat nunca tuvo.** El agente lee el
+   pedido completo en voz alta y espera un "sí" explícito antes de cerrarlo.
+3. **En una llamada no hay menú que mandar.** Negarse a tomar el pedido no
+   protege al cliente: lo pierde.
+
+**Decisión.** Se agrega el valor `source = "call"` y un endpoint interno
+(`POST /api/internal/voice-order` en `apps/menu`) que crea el pedido ya en
+`pending`. El agente de voz **no toca Neon**: lee el catálogo por HTTP y manda
+referencias.
+
+**Qué NO cambia.** El candado del chat de WhatsApp se queda tal cual: un pedido
+por chat sigue siendo imposible y `order-guard.ts` no se tocó. La excepción se
+limita a un canal donde el pedido lo construye el sistema, y queda **auditable
+en la base**: se puede saber cuál pedido no nació del menú y cuál llamada lo
+creó (`source_ref`).
+
+**Tres consecuencias que no son obvias:**
+
+- **Entra como *Nuevo*, no como borrador.** El código de un solo uso existe para
+  que el pedido **vuelva** del navegador al chat; en una llamada no hay nada que
+  canjear y el canje solo dejaría la comanda esperando a alguien que nunca va a
+  escribir.
+- **Un producto agotado hace fallar el pedido entero** (422 con la lista), al
+  contrario del menú, que lo descarta y sigue. En el menú el cliente está
+  mirando la pantalla y ve que el producto desapareció; en una llamada, un
+  cliente que pidió tres cosas y recibe dos no se enteró de nada.
+- **La idempotencia la garantiza Postgres, no un `if`.** El `room_name` de la
+  llamada va en `source_ref` con índice único: el modelo invoca `confirm_order`
+  dos veces de vez en cuando, y el segundo intento tiene que devolver el mismo
+  pedido en vez de mandar una comanda repetida a la parrilla.
+
+**Lo que NO se hizo.** Telefonía real con un número colombiano (es trámite con
+operador, no código; cuando se haga, nada de esto cambia), transferir la llamada
+a una persona, y consultar por voz el estado de un pedido anterior.

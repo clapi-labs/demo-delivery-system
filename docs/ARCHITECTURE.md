@@ -162,7 +162,15 @@ restaurante, así que uno abierto es un problema, no una molestia.
 | `POST /api/internal/menu-order` | menú | El cliente envió un pedido |
 | `POST /api/internal/send` | portal | Un agente responde a un cliente |
 | `POST /api/internal/notify` | portal | La ficha de un pedido a un domiciliario propio |
+| `GET /api/internal/catalog` | agente de voz | El catálogo con el precio de hoy ya resuelto (RF-56) |
+| `POST /api/internal/voice-order` | agente de voz | Crear el pedido que se cerró hablando (RF-57, ADR-13) |
 | `GET /api/cron/outbox` | Vercel Cron | Entregar los avisos pendientes |
+
+Los dos del agente de voz viven en **`apps/menu`** y no en el portal por una
+razón concreta: la resolución de precios y el catálogo están ahí. El portal
+**lee** pedidos, no los crea. `GET /api/health` del menú queda público a
+propósito —lo llama el navegador del cliente antes de dejarlo hablar (RF-59) y
+lo único que revela es si el restaurante está recibiendo pedidos.
 
 ## Degradación
 

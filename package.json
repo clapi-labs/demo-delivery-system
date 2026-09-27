@@ -25,6 +25,7 @@
     "verify:orchestrator": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-orchestrator.ts",
     "verify:advisor": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-advisor.ts",
     "verify:menu-order": "tsx --tsconfig apps/menu/tsconfig.json --env-file=.env.local scripts/verify-menu-order.ts",
+    "verify:voice-order": "tsx --tsconfig apps/menu/tsconfig.json --env-file=.env.local scripts/verify-voice-order.ts",
     "verify:bot-menu-order": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-bot-menu-order.ts",
     "verify:bot-active": "tsx --tsconfig apps/bot/tsconfig.json --env-file=.env.local scripts/verify-bot-active.ts"
   },

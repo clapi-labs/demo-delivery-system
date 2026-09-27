@@ -8,6 +8,7 @@ import {
   orderItems,
   orders,
   products,
+  type OrderSource,
   type OrderStatus,
   type PaymentMethod,
   type SelectedOption,
@@ -61,6 +62,9 @@ export type PortalOrder = {
   id: number;
   code: string;
   status: PortalOrderStatus;
+  /** Por dónde entró. Un pedido por llamada se atiende distinto —el cliente no
+   *  está en WhatsApp— y la cocina tiene que verlo de un golpe (RF-60). */
+  source: OrderSource;
   phone: string | null;
   customerName: string | null;
   address: string | null;
@@ -124,6 +128,7 @@ export async function getPortalOrders(): Promise<PortalOrder[]> {
     // La consulta ya excluyó los borradores; el `as` solo le dice eso al
     // compilador, que no puede deducirlo de un `ne()`.
     status: order.status as PortalOrderStatus,
+    source: order.source,
     phone: order.phone,
     customerName: order.customerName,
     address: order.address,
