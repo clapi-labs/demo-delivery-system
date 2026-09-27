@@ -61,6 +61,20 @@ export const BUSINESS = {
 } as const;
 
 /**
+ * Lo que le cuesta al restaurante cada pedido que atendió el bot.
+ *
+ * Va aparte de `BUSINESS` porque no es un dato del negocio sino el precio del
+ * servicio, y el portal lo muestra **a la vista, junto al número de pedidos**:
+ * quien contrata esto tiene que poder ver lo que lleva gastado sin pedirle la
+ * cuenta a nadie.
+ *
+ * Se multiplica por los pedidos atendidos, sin contar los cancelados.
+ */
+export const BOT_PRICING = {
+  costPerOrder: envInt("BOT_COST_PER_ORDER", 300),
+} as const;
+
+/**
  * ¿Está abierto ahora?
  *
  * Fuera de horario el asistente contesta el horario y **no llama al modelo ni

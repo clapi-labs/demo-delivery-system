@@ -27,13 +27,21 @@ export type PortalOrder = {
   deliveryFee: number;
   total: number;
   createdAt: string;
-  items: {
-    name: string;
-    quantity: number;
-    unitPrice: number;
-    lineTotal: number;
-    options: { group: string; name: string; priceDelta: number }[];
-  }[];
+  items: PortalOrderLine[];
+};
+
+/** Un renglón del pedido. La foto y la categoría salen del catálogo (el
+ *  nombre y el precio están congelados en el renglón), y son nulas cuando el
+ *  producto ya no existe. */
+export type PortalOrderLine = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  options: { group: string; name: string; priceDelta: number }[];
+  imageUrl: string | null;
+  categorySlug: string | null;
+  categoryName: string | null;
 };
 
 /** El camino normal. `cancelled` queda fuera: es una salida, no un paso. */

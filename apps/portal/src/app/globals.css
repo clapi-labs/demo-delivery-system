@@ -51,6 +51,10 @@
   --color-whatsapp-ink: var(--whatsapp-ink);
   --color-whatsapp-soft: var(--whatsapp-soft);
 
+  --color-maps: var(--maps);
+  --color-maps-ink: var(--maps-ink);
+  --color-maps-soft: var(--maps-soft);
+
   --color-rail: var(--rail);
   --color-rail-fg: var(--rail-fg);
   --color-rail-muted: var(--rail-muted);
@@ -106,6 +110,14 @@
   --whatsapp: #22c55e;
   --whatsapp-ink: #15803d;
   --whatsapp-soft: #f0fdf4;
+
+  /* Azul de Google Maps. Como el verde de WhatsApp, no es un color semántico
+   * del portal: es la marca del servicio al que lleva el botón. El tono del
+   * texto es el azul 800 de Google, no el 500, porque el 500 sobre blanco no
+   * llega al contraste mínimo. */
+  --maps: #4285f4;
+  --maps-ink: #1557b0;
+  --maps-soft: #eef4fe;
 
   --rail: #18181b; /* zinc-900 */
   --rail-fg: #f4f4f5;
@@ -195,6 +207,27 @@
 
 @utility bottom-tabbar {
   bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+/* Los tres puntos del estado del asistente: el "escribiendo…" de un chat.
+ * Cada punto lleva su propio `animation-delay` en línea. Con
+ * `prefers-reduced-motion` la regla de arriba la deja en 0.01 ms, o sea
+ * quieta. */
+@keyframes bot-typing {
+  0%,
+  70%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@utility animate-typing {
+  animation: bot-typing 1.4s ease-in-out infinite;
 }
 
 @utility no-scrollbar {

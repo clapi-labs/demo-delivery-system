@@ -1,4 +1,4 @@
-import { BUSINESS } from "@sistema/shared";
+import { BOT_PRICING, BUSINESS } from "@sistema/shared";
 
 import { Dashboard } from "@/components/dashboard/Dashboard";
 
@@ -16,6 +16,7 @@ export default function DashboardPage() {
         closesAt: BUSINESS.closesAt,
         timezone: BUSINESS.timezone,
       }}
+      costPerOrder={BOT_PRICING.costPerOrder}
     />
   );
 }

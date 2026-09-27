@@ -24,6 +24,7 @@ import {
   Info,
   LayoutDashboard,
   MapPin,
+  MapPinned,
   MessageCircle,
   Phone,
   Plus,
@@ -72,6 +73,7 @@ export const CloseIcon = wrap(X);
 export const PlusIcon = wrap(Plus);
 export const PhoneIcon = wrap(Phone);
 export const PinIcon = wrap(MapPin);
+export const MapIcon = wrap(MapPinned);
 export const BotIcon = wrap(Bot);
 export const HandIcon = wrap(Hand);
 export const SendIcon = wrap(SendHorizontal);

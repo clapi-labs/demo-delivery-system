@@ -17,6 +17,7 @@ import {
   type ActiveStatus,
   type PortalOrder,
 } from "@/lib/orders";
+import { useMedia } from "@/lib/use-media";
 import { useNow } from "@/lib/use-now";
 
 import { OrderTicket } from "./OrderTicket";
@@ -73,10 +74,13 @@ function Animated({ id, children }: { id: number; children: ReactNode }) {
 /**
  * El tablero de pedidos (RF-28, RF-29).
  *
- * "Todos" es el tablero de la cocina: en pantalla grande tres columnas de
- * izquierda a derecha; en celular y tablet vertical, las mismas tres apiladas,
- * con los más viejos arriba en cada una. Cada estado tiene además su pestaña
- * con contador, y "Entregados" guarda lo cerrado (entregados y cancelados).
+ * Cada estado tiene su pestaña con contador, con los más viejos arriba, y
+ * "Entregados" guarda lo cerrado (entregados y cancelados).
+ *
+ * En escritorio hay además "Tablero": las tres columnas de la cocina de
+ * izquierda a derecha, con arrastrar y soltar entre ellas. **Esa pestaña no
+ * existe en el celular**: ahí eran las mismas tres columnas apiladas una
+ * debajo de otra, o sea lo que ya dicen las cuatro pestañas de estado.
  */
 export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initialTab?: OrdersTab; initialQuery?: string }) {
   const { orders, loading, error, freshIds, advance, setStatus } = useOrders();
@@ -141,7 +145,28 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
   const focusCode = initialQuery.trim().toUpperCase();
   const focusOrder = focusCode ? orders.find((o) => o.code === focusCode) : undefined;
   const focusClosed = focusOrder?.status === "delivered" || focusOrder?.status === "cancelled";
-  const tab: OrdersTab = chosenTab ?? (focusClosed ? "delivered" : initialTab);
+
+  // "Tablero" (las tres columnas con arrastrar y soltar) es solo de
+  // escritorio: en el celular repetía lo que ya dicen las cuatro pestañas de
+  // estado, una debajo de otra.
+  const wide = useMedia("(min-width: 1024px)");
+
+  // En qué pestaña SÍ está el pedido que se vino a ver. En escritorio lo cubre
+  // el tablero; en el celular hay que ir a la pestaña de su estado o la
+  // tarjeta no aparece en ninguna parte.
+  const focusTab: OrdersTab | null = !focusOrder
+    ? null
+    : focusClosed
+      ? "delivered"
+      : wide
+        ? "all"
+        : (focusOrder.status as ActiveStatus);
+
+  const requested = chosenTab ?? focusTab ?? initialTab;
+  // Sin "Tablero" en el celular, un enlace viejo a `?estado=all` (p. ej. el
+  // "Ver todos" del inicio) aterriza en "Nuevos" en vez de dejar la pantalla
+  // en blanco.
+  const tab: OrdersTab = requested === "all" && !wide ? "pending" : requested;
 
   // La pestaña elegida (o la que abrió un enlace, p. ej. "Entregados") nunca
   // queda escondida detrás del borde.
@@ -248,7 +273,8 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
             onChange={setTab}
             className="w-max min-w-full lg:min-w-0"
             options={[
-              { value: "all", label: "Todos", count: groups.active.length },
+              // El tablero de tres columnas, solo donde cabe.
+              ...(wide ? [{ value: "all" as const, label: "Tablero", count: groups.active.length }] : []),
               { value: "pending", label: "Nuevos", count: groups.pending.length, countTone: late ? "danger" : "brand" },
               { value: "preparing", label: "En preparación", count: groups.preparing.length },
               { value: "sent", label: "Enviados", count: groups.sent.length },
@@ -268,102 +294,56 @@ export function OrdersBoard({ initialTab = "all", initialQuery = "" }: { initial
         </div>
       ) : null}
 
+      {/* `grid-cols-1` explícito en las listas de abajo, no `grid` a secas: la
+          columna implícita se dimensiona `auto`, o sea al ancho MÍNIMO de la
+          tarjeta más ancha, y se desborda de la pantalla sin avisar.
+          `grid-cols-1` es `minmax(0, 1fr)`, que sí obliga a caber. */}
       <div className="mt-4 lg:mt-5">
         {tab === "all" ? (
-          <>
-            {/* Celular y tablet vertical: las tres columnas apiladas, en el
-                mismo orden que en escritorio (lo que más urge, arriba). En
-                tablet, cada sección en dos columnas.
-
-                `grid-cols-1` explícito, no `grid` a secas: la columna
-                implícita se dimensiona `auto`, o sea al ancho MÍNIMO de la
-                tarjeta más ancha, y se desborda de la pantalla sin avisar.
-                `grid-cols-1` es `minmax(0, 1fr)`, que sí obliga a caber. */}
-            <div className="lg:hidden">
-              {loading ? (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{skeletonCards(4)}</div>
-              ) : groups.active.length === 0 ? (
-                <EmptyState icon={<OrdersIcon />} title={q ? "Nada coincide con la búsqueda" : "No hay pedidos en curso"}>
-                  Cuando un cliente envíe su pedido desde el menú, aparece aquí solo.
-                </EmptyState>
-              ) : (
-                <div className="space-y-6">
-                  {ACTIVE_STATUSES.map((status) => {
-                    const list = groups[status];
-                    // Buscando, las secciones vacías solo estorban.
-                    if (q && list.length === 0) return null;
-                    const tone = STATUS_TONE[status];
-                    return (
-                      <section key={status} aria-label={ORDER_COLUMN_LABEL[status]}>
-                        <header className="mb-2.5 flex items-center gap-2 px-1">
-                          <span className={`h-2.5 w-2.5 rounded-full ${tone.dot}`} />
-                          <h2 className="text-sm font-semibold tracking-title">{ORDER_COLUMN_LABEL[status]}</h2>
-                          <span
-                            className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums ${tone.soft} ${tone.ink}`}
-                          >
-                            {list.length}
-                          </span>
-                        </header>
-                        {list.length === 0 ? (
-                          <p className="rounded-xl border border-dashed border-line-strong px-4 py-4 text-center text-sm text-ink-3">
-                            {EMPTY_TEXT[status]}
-                          </p>
-                        ) : (
-                          <AnimatedList className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
-                            {list.map((o) => ticket(o))}
-                          </AnimatedList>
-                        )}
-                      </section>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Escritorio: tres columnas, se puede arrastrar entre ellas. */}
-            <div className="hidden items-start gap-5 lg:grid lg:grid-cols-3">
-              {ACTIVE_STATUSES.map((status) => {
-                const list = groups[status];
-                const tone = STATUS_TONE[status];
-                return (
-                  <section
-                    key={status}
-                    aria-label={ORDER_COLUMN_LABEL[status]}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOver(status);
-                    }}
-                    onDragLeave={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null);
-                    }}
-                    onDrop={(e) => onDrop(status, e)}
-                    className={`ease-ui flex min-h-[60vh] flex-col rounded-2xl bg-well/70 p-3 ${
-                      dragOver === status ? "bg-well ring-2 ring-brand/40" : ""
-                    }`}
-                  >
-                    <header className="mb-3 flex items-center gap-2 px-1">
-                      <span className={`h-2.5 w-2.5 rounded-full ${tone.dot}`} />
-                      <h2 className="text-sm font-semibold tracking-title">{ORDER_COLUMN_LABEL[status]}</h2>
-                      <span
-                        className={`ml-auto flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums ${tone.soft} ${tone.ink}`}
-                      >
-                        {list.length}
-                      </span>
-                    </header>
-                    {loading ? (
-                      <div className="space-y-3">{skeletonCards(2)}</div>
-                    ) : list.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-line-strong px-4 py-8 text-center text-sm text-ink-3">
-                        {q ? "Nada coincide con la búsqueda." : EMPTY_TEXT[status]}
-                      </p>
-                    ) : (
-                      <AnimatedList className="flex flex-col gap-3">{list.map((o) => ticket(o))}</AnimatedList>
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          </>
+          /* El tablero: tres columnas, se puede arrastrar entre ellas. Solo en
+             escritorio — la pestaña que lo abre no existe en el celular. */
+          <div className="hidden items-start gap-5 lg:grid lg:grid-cols-3">
+            {ACTIVE_STATUSES.map((status) => {
+              const list = groups[status];
+              const tone = STATUS_TONE[status];
+              return (
+                <section
+                  key={status}
+                  aria-label={ORDER_COLUMN_LABEL[status]}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(status);
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null);
+                  }}
+                  onDrop={(e) => onDrop(status, e)}
+                  className={`ease-ui flex min-h-[60vh] flex-col rounded-2xl bg-well/70 p-3 ${
+                    dragOver === status ? "bg-well ring-2 ring-brand/40" : ""
+                  }`}
+                >
+                  <header className="mb-3 flex items-center gap-2 px-1">
+                    <span className={`h-2.5 w-2.5 rounded-full ${tone.dot}`} />
+                    <h2 className="text-sm font-semibold tracking-title">{ORDER_COLUMN_LABEL[status]}</h2>
+                    <span
+                      className={`ml-auto flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums ${tone.soft} ${tone.ink}`}
+                    >
+                      {list.length}
+                    </span>
+                  </header>
+                  {loading ? (
+                    <div className="space-y-3">{skeletonCards(2)}</div>
+                  ) : list.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-line-strong px-4 py-8 text-center text-sm text-ink-3">
+                      {q ? "Nada coincide con la búsqueda." : EMPTY_TEXT[status]}
+                    </p>
+                  ) : (
+                    <AnimatedList className="flex flex-col gap-3">{list.map((o) => ticket(o))}</AnimatedList>
+                  )}
+                </section>
+              );
+            })}
+          </div>
         ) : tab === "delivered" ? (
           loading ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{skeletonCards(3)}</div>

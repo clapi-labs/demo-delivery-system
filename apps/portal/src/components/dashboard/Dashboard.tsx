@@ -9,7 +9,7 @@ import { formatCOP } from "@sistema/shared";
 import {
   BagIcon,
   BikeIcon,
-  CancelIcon,
+  BotIcon,
   ChatIcon,
   CheckIcon,
   ChefIcon,
@@ -119,6 +119,50 @@ function Alert({
   );
 }
 
+// --- Estado del asistente ------------------------------------------------------
+
+type BotState = "atendiendo" | "fuera" | "caido";
+
+const BOT_STATE: Record<BotState, { label: string; box: string; dot: string }> = {
+  atendiendo: { label: "Atendiendo", box: "bg-ok-soft text-ok-ink ring-ok/20", dot: "bg-ok" },
+  fuera: { label: "Fuera de horario", box: "bg-surface text-idle-ink ring-black/5", dot: "bg-idle" },
+  caido: { label: "Sin conexión", box: "bg-danger-soft text-danger-ink ring-danger/20", dot: "bg-danger" },
+};
+
+/**
+ * El estado del asistente, en la cabecera.
+ *
+ * Reemplazó al horario del negocio: con la demo abierta 24/7, "Abierto · 24
+ * horas" no decía nada, y lo que de verdad importa mirar al entrar es si el
+ * bot está contestando. Los tres puntos son el "escribiendo…" de un chat — se
+ * mueven **solo cuando está atendiendo**, que es justo cuando significan algo.
+ */
+function BotStatus({ state }: { state: BotState }) {
+  const tone = BOT_STATE[state];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm ring-1 ${tone.box}`}
+      title="Estado del asistente de WhatsApp"
+    >
+      <BotIcon className="h-3.5 w-3.5" />
+      {tone.label}
+      {state === "atendiendo" ? (
+        <span className="flex items-center gap-[3px] pl-0.5" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="animate-typing h-1 w-1 rounded-full bg-current"
+              style={{ animationDelay: `${i * 180}ms` }}
+            />
+          ))}
+        </span>
+      ) : (
+        <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} aria-hidden="true" />
+      )}
+    </span>
+  );
+}
+
 // --- Métricas ------------------------------------------------------------------
 
 function Trend({ today, yesterday, upIsGood = true }: { today: number; yesterday: number; upIsGood?: boolean }) {
@@ -143,14 +187,19 @@ function Kpi({
   value,
   icon: Icon,
   trend,
+  footer,
+  className = "",
 }: {
   label: string;
   value: string;
   icon: ComponentType<{ className?: string }>;
   trend: ReactNode;
+  /** Un dato más, separado por una línea. Hoy lo usa el costo del bot. */
+  footer?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="card p-4 sm:p-5">
+    <div className={`card flex flex-col p-4 sm:p-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-ink-2">{label}</p>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sunken text-ink-3">
@@ -161,6 +210,30 @@ function Kpi({
           se sale de la tarjeta. Baja un paso y solo crece desde `sm`. */}
       <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-title sm:text-3xl">{value}</p>
       {trend}
+      {footer ? <div className="mt-auto border-t border-line pt-2.5">{footer}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * Lo que lleva cobrado el asistente hoy, dentro de la tarjeta de Pedidos.
+ *
+ * Va a la vista y con la cuenta escrita (`14 × $300`), no escondido en un
+ * informe: el que paga tiene que poder comprobar de dónde sale la cifra de un
+ * vistazo. Los pedidos cancelados no cuentan — son los mismos que no suman en
+ * el número de arriba.
+ */
+function BotCost({ orders, costPerOrder }: { orders: number; costPerOrder: number }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+      <span className="inline-flex items-center gap-1.5 text-xs text-ink-3">
+        <BotIcon className="h-3.5 w-3.5" />
+        Costo del bot
+      </span>
+      <span className="text-sm font-semibold tabular-nums text-ink">{formatCOP(orders * costPerOrder)}</span>
+      <span className="w-full text-[11px] tabular-nums text-ink-3">
+        {orders} × {formatCOP(costPerOrder)} por pedido
+      </span>
     </div>
   );
 }
@@ -333,17 +406,19 @@ function Kitchen({ orders }: { orders: PortalOrder[] }) {
 
 // --- Página --------------------------------------------------------------------
 
-export function Dashboard({ business }: { business: BusinessHours }) {
-  const { orders, loading, advance } = useOrders();
+export function Dashboard({ business, costPerOrder }: { business: BusinessHours; costPerOrder: number }) {
+  const { orders, loading, error, advance } = useOrders();
   const { conversations } = useInbox();
   const { products } = useMenu();
   const now = useNow();
 
   const hour = now ? hourIn(business.timezone, now) : null;
   const open = hour !== null && hour >= business.opensAt && hour < business.closesAt;
-  // El mismo cálculo que `isAlwaysOpen()` en shared, hecho sobre las props:
-  // este componente es de cliente y no puede leer `process.env`.
-  const alwaysOpen = business.opensAt <= 0 && business.closesAt >= 24;
+  // El bot solo atiende dentro del horario (RF-12), así que el estado de la
+  // cabecera es el horario más la conexión con el servidor. `error` viene del
+  // sondeo de pedidos: si no hay respuesta, el portal no puede prometer que
+  // alguien esté contestando.
+  const botState: BotState = error ? "caido" : open ? "atendiendo" : "fuera";
 
   // Hoy hasta ahora, contra ayer hasta la misma hora.
   const startToday = now ? new Date(now).setHours(0, 0, 0, 0) : 0;
@@ -384,20 +459,7 @@ export function Dashboard({ business }: { business: BusinessHours }) {
           </h1>
           <p className="mt-1 text-sm capitalize text-ink-2">{now ? dateFormat.format(now) : " "}</p>
         </div>
-        {hour !== null ? (
-          <span
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium shadow-sm ring-1 ${
-              open ? "bg-ok-soft text-ok-ink ring-ok/20" : "bg-surface text-idle-ink ring-black/5"
-            }`}
-          >
-            <span className={`h-2 w-2 rounded-full ${open ? "bg-ok" : "bg-idle"}`} />
-            {alwaysOpen
-              ? "Abierto · 24 horas"
-              : open
-                ? `Abierto hasta las ${hourLabel(business.closesAt)}`
-                : `Cerrado. Abre a las ${hourLabel(business.opensAt)}`}
-          </span>
-        ) : null}
+        {hour !== null ? <BotStatus state={botState} /> : null}
       </header>
 
       <section aria-label="Lo que necesita atención" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
@@ -442,24 +504,31 @@ export function Dashboard({ business }: { business: BusinessHours }) {
         )}
       </section>
 
-      <section aria-label="Cifras de hoy" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* Tres cifras, no cuatro: "Cancelados" se fue porque casi siempre es
+          un cero que ocupa el mismo espacio que un dato útil. En su lugar, el
+          costo del bot va dentro de Pedidos, que es el número que lo explica.
+          En celular la tercera ocupa el ancho entero en vez de dejar un hueco. */}
+      <section aria-label="Cifras de hoy" className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-3">
         {!ready ? (
-          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[7.5rem] rounded-xl" />)
+          [0, 1, 2].map((i) => (
+            <Skeleton key={i} className={`h-[7.5rem] rounded-xl ${i === 2 ? "col-span-2 lg:col-span-1" : ""}`} />
+          ))
         ) : (
           <>
             <Kpi label="Ventas de hoy" value={formatCOP(today.sales)} icon={SalesIcon} trend={<Trend today={today.sales} yesterday={yesterday.sales} />} />
-            <Kpi label="Pedidos" value={String(today.count)} icon={BagIcon} trend={<Trend today={today.count} yesterday={yesterday.count} />} />
+            <Kpi
+              label="Pedidos"
+              value={String(today.count)}
+              icon={BagIcon}
+              trend={<Trend today={today.count} yesterday={yesterday.count} />}
+              footer={<BotCost orders={today.count} costPerOrder={costPerOrder} />}
+            />
             <Kpi
               label="Ticket promedio"
               value={formatCOP(today.average)}
               icon={ReceiptIcon}
               trend={<Trend today={today.average} yesterday={yesterday.average} />}
-            />
-            <Kpi
-              label="Cancelados"
-              value={String(today.cancelled)}
-              icon={CancelIcon}
-              trend={<Trend today={today.cancelled} yesterday={yesterday.cancelled} upIsGood={false} />}
+              className="col-span-2 lg:col-span-1"
             />
           </>
         )}

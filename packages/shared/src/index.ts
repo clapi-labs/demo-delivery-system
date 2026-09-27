@@ -7,4 +7,4 @@ export * from "./domain/order-status";
 export * from "./domain/payment";
 export * from "./domain/promotions";
 export * from "./domain/session-window";
-export { BUSINESS, isAlwaysOpen, isOpenNow } from "./config/business-info";
+export { BOT_PRICING, BUSINESS, isAlwaysOpen, isOpenNow } from "./config/business-info";

@@ -1,1 +1,1 @@
-export { BUSINESS, isAlwaysOpen, isOpenNow } from "./business-info";
+export { BOT_PRICING, BUSINESS, isAlwaysOpen, isOpenNow } from "./business-info";

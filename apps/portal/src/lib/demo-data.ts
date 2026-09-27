@@ -27,6 +27,19 @@ const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
 
 type Line = [name: string, quantity: number, unitPrice: number, options?: string[]];
 
+/**
+ * A qué categoría pertenece cada producto del catálogo semilla.
+ *
+ * En un pedido de verdad esto sale de la base (`order_items.product_id` →
+ * `products` → `categories`). Acá se resuelve por nombre contra el mismo
+ * catálogo que carga `npm run db:seed`, así que la comanda de demostración
+ * muestra la misma foto y la misma categoría que mostraría con datos reales.
+ * Lo que no coincida queda sin categoría y cae en la foto genérica.
+ */
+const CATEGORY_BY_PRODUCT = new Map(
+  CATALOG.flatMap((c) => c.products.map((p) => [p.name, { slug: c.slug, name: c.name }] as const)),
+);
+
 function order(
   id: number,
   code: string,
@@ -38,13 +51,19 @@ function order(
   paymentMethod: PortalOrder["paymentMethod"],
   lines: Line[],
 ): PortalOrder {
-  const items = lines.map(([name, quantity, unitPrice, options = []]) => ({
-    name,
-    quantity,
-    unitPrice,
-    lineTotal: unitPrice * quantity,
-    options: options.map((o) => ({ group: "", name: o, priceDelta: 0 })),
-  }));
+  const items = lines.map(([name, quantity, unitPrice, options = []]) => {
+    const category = CATEGORY_BY_PRODUCT.get(name);
+    return {
+      name,
+      quantity,
+      unitPrice,
+      lineTotal: unitPrice * quantity,
+      options: options.map((o) => ({ group: "", name: o, priceDelta: 0 })),
+      imageUrl: null,
+      categorySlug: category?.slug ?? null,
+      categoryName: category?.name ?? null,
+    };
+  });
   const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
   return {
     id,

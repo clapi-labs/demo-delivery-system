@@ -372,17 +372,26 @@ trabajar en una rama aparte, sin tocar `main`.
   navegar.
 - **Pedidos** (`app/pedidos`, `components/orders/OrderTicket.tsx`). Escritorio:
   tres columnas (Nuevos, En preparación, Enviados), los más viejos arriba.
-  Arriba, pestañas con contador: Todos, Nuevos, En preparación, Enviados y
-  Entregados (con los cancelados aparte). En celular y tablet vertical
-  "Todos" apila las mismas tres secciones (Nuevos primero); las pestañas que
-  no caben se desplazan de lado con el borde desvanecido y la elegida siempre
-  queda a la vista. El aviso de "desliza" sale en todo equipo táctil, no por
-  ancho. `?estado=` abre una pestaña y `?pedido=CODIGO` abre ese pedido. Avanzar un pedido es
+  Arriba, pestañas con contador: Nuevos, En preparación, Enviados y
+  Entregados (con los cancelados aparte), más **"Tablero"** —esas tres
+  columnas— **solo en escritorio**: en el celular era apilarlas una debajo de
+  otra, o sea repetir lo que ya dicen las otras pestañas, así que ahí no se
+  ofrece (un enlace viejo a `?estado=all` aterriza en "Nuevos"). Las pestañas
+  que no caben se desplazan de lado con el borde desvanecido y la elegida
+  siempre queda a la vista. El aviso de "desliza" sale en todo equipo táctil,
+  no por ancho. `?estado=` abre una pestaña y `?pedido=CODIGO` abre ese pedido
+  —en el celular, en la pestaña de su estado—. Avanzar un pedido es
   **un solo gesto**: el botón de la tarjeta, deslizarla a la derecha (dedo) o
   arrastrarla a otra columna (mouse). Cada cambio muestra "Deshacer" en vez
-  de pedir confirmación. Tocar la tarjeta despliega el detalle ahí mismo
-  (dirección con mapa, teléfono, "Ver chat", cambiar a cualquier estado,
-  cancelar con confirmación en línea). El cronómetro de cada pedido cambia de
+  de pedir confirmación. La lista de productos lleva **la foto del producto a
+  la derecha** (la propia si existe; si no, la de su categoría, la misma que ve
+  el cliente en el menú). Tocar la tarjeta despliega el detalle ahí mismo: la
+  foto crece y aparecen categoría y total por renglón, y debajo dos bloques
+  —Entrega (dirección, teléfono, y "Abrir en el mapa" / "Ver chat" como
+  botones de verdad) y Cuenta (subtotal, domicilio, total)—, con "Cancelar
+  pedido" como única acción secundaria. **No hay fila de "Cambiar estado"**:
+  un pedido solo avanza, y para un avance por error está "Deshacer".
+  El cronómetro de cada pedido cambia de
   color a los 5/10 min (nuevo), 20/30 (preparación) y 30/45 (enviado).
   **Sigue conectado a Neon** por `GET/POST /api/orders`; la actualización es
   optimista y un sondeo que llega a mitad de camino no la revierte.
@@ -478,7 +487,8 @@ conflictos de código (el detalle de cada ajuste está arriba, en "Rediseño del
 portal"). Lo que cambia:
 
 - Pedidos: en celular y tablet vertical, "Todos" apila las tres secciones
-  (Nuevos, En preparación, Enviados) en vez de una lista mezclada.
+  (Nuevos, En preparación, Enviados) en vez de una lista mezclada. *(Eso se
+  quitó el 2026-09-26: ver "7. La comanda se rehízo".)*
 - Pestañas que se desplazan de lado con el borde desvanecido; la elegida se
   trae a la vista sola.
 - Áreas táctiles de 36–44 px en la comanda, que vuelven a su tamaño con mouse
@@ -627,6 +637,67 @@ error: `isAlwaysOpen()` en shared, y con él la etiqueta del menú público
 ("Abierto ahora · 24 horas") y la del encabezado del portal ("Abierto · 24
 horas"). La gráfica de pedidos por hora del portal pasa de 11 a 24 columnas,
 así que etiqueta una de cada cuatro en vez de una de cada dos.
+
+### 7. La comanda se rehízo (2026-09-26)
+
+El detalle de un pedido tenía todo junto y sin jerarquía. Qué cambió, en
+`components/orders/OrderTicket.tsx` salvo donde se diga:
+
+- **Foto del producto en cada renglón**, a la derecha y pegada al borde de la
+  tarjeta (a la izquierda dejaba el nombre y las opciones en una columna
+  angosta). Al abrir el detalle la foto crece y aparecen la categoría y el
+  total de la línea. Es la foto propia del producto si la tiene, y si no la de
+  su categoría — `categoryImage()`, la misma que ve el cliente en el menú.
+  Para que eso llegue hasta acá, `db/orders.ts` dejó de leer `order_items` a
+  secas y le hace dos `leftJoin` (`products`, `categories`) para traer
+  `imageUrl`, `categorySlug` y `categoryName`. Son `left` a propósito:
+  `product_id` es nulable (`on delete set null`) y un pedido histórico sin
+  producto se tiene que seguir viendo.
+- **"Abrir en el mapa" y "Ver chat" son botones**, no un enlace subrayado y
+  una pastilla: blancos, con anillo de color, sombra corta e icono. Cada uno
+  va **al lado del dato que abre** —el del mapa junto a la dirección, el del
+  chat junto al teléfono— y solo baja a su propia línea, a lo ancho, cuando la
+  tarjeta es angosta; eso es un `w-full sm:w-auto` dentro de un contenedor
+  `flex-wrap`, no un segundo juego de marcado. El del mapa va en **azul de
+  Google** (`--maps`, como el verde de WhatsApp: la marca del servicio al que
+  lleva, no un color semántico del portal).
+- **Fuera la fila de "Cambiar estado"**. Cuatro pastillas ocupaban el lugar
+  más fuerte del detalle sin aportar —el pedido ya avanza con el botón,
+  deslizando o arrastrando— y le robaban presencia a "Cancelar pedido", que
+  ahora es la única acción secundaria. Un avance por error se corrige con
+  "Deshacer". `onSetStatus` se queda: lo usa la cancelación.
+- **Contraste**: el panel del detalle pasa de `bg-sunken/60` (casi el color de
+  la tarjeta) a gris sólido, y por dentro va en bloques blancos, *Entrega* y
+  *Cuenta*, con el **total** que antes solo estaba en el pie.
+- **"Todos" ya no existe en el celular** (`OrdersBoard.tsx`). Ahí apilaba las
+  tres secciones, o sea repetía las otras pestañas. En escritorio se queda,
+  con el nombre **"Tablero"**, porque es el kanban con arrastrar y soltar.
+  Dos cosas que hubo que atar: un `?estado=all` viejo aterriza en "Nuevos", y
+  un `?pedido=CODIGO` en el celular abre la pestaña **del estado de ese
+  pedido** (antes le bastaba con caer en "Todos").
+
+### 8. Inicio: el estado del bot y lo que cuesta (2026-09-26)
+
+- **La pastilla de la cabecera ya no dice el horario, dice cómo está el
+  asistente.** Con la demo abierta 24/7, "Abierto · 24 horas" no informaba de
+  nada; lo que de verdad se mira al entrar es si el bot está contestando.
+  Tres estados: *Atendiendo* (verde, con los tres puntos del "escribiendo…"
+  animados), *Fuera de horario* (gris, si alguien le pone horario real al
+  negocio) y *Sin conexión* (rojo, cuando el sondeo de pedidos no responde —
+  el portal no puede prometer que alguien esté atendiendo si no habla con el
+  servidor). La animación es `@keyframes bot-typing` en `globals.css`, y
+  `prefers-reduced-motion` la deja quieta como a todo lo demás.
+- **Fuera "Cancelados"**, que casi siempre era un cero ocupando el sitio de un
+  dato útil. Quedan tres tarjetas; en celular la tercera va a lo ancho en vez
+  de dejar un hueco.
+- **El costo del bot va a la vista**, dentro de la tarjeta de Pedidos y con la
+  cuenta escrita (`13 × $300 por pedido`): quien paga el servicio tiene que
+  poder comprobar de dónde sale la cifra sin pedirle un informe a nadie. El
+  precio es `BOT_PRICING.costPerOrder` en `packages/shared`
+  (`BOT_COST_PER_ORDER`, 300 COP por defecto) y lo pasa la página del servidor
+  por props, como el horario: `Dashboard` es un componente de cliente y no
+  puede leer `process.env`. Se multiplica por los pedidos **atendidos**, los
+  mismos que suman en el número de arriba (los cancelados no cuentan).
 
 ---
 

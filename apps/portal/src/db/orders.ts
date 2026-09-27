@@ -1,9 +1,11 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 
 import {
+  categories,
   db,
   orderItems,
   orders,
+  products,
   type OrderStatus,
   type PaymentMethod,
   type SelectedOption,
@@ -24,6 +26,12 @@ export type PortalOrderItem = {
   unitPrice: number;
   lineTotal: number;
   options: SelectedOption[];
+  /** Los tres vienen del catálogo, no del renglón: son para la foto y el
+   *  rótulo de categoría en la comanda. Nulos si el producto ya no existe
+   *  (`order_items.product_id` es `on delete set null`). */
+  imageUrl: string | null;
+  categorySlug: string | null;
+  categoryName: string | null;
 };
 
 /**
@@ -62,18 +70,32 @@ export async function getPortalOrders(): Promise<PortalOrder[]> {
 
   // Una sola consulta para todos los renglones, no una por pedido: con 100
   // pedidos en pantalla, lo segundo son 100 viajes a la base por cada carga.
-  const allItems = await db.select().from(orderItems);
+  //
+  // Los dos `leftJoin` son para la foto y la categoría del producto. Tienen
+  // que ser `left`: `productId` es nulable y se pone en nulo si el producto se
+  // borra, y ese renglón histórico igual se tiene que ver (con su nombre
+  // congelado y sin foto).
+  const allItems = await db
+    .select({
+      orderId: orderItems.orderId,
+      name: orderItems.nameSnapshot,
+      quantity: orderItems.quantity,
+      unitPrice: orderItems.unitPrice,
+      lineTotal: orderItems.lineTotal,
+      options: orderItems.selectedOptions,
+      imageUrl: products.imageUrl,
+      categorySlug: categories.slug,
+      categoryName: categories.name,
+    })
+    .from(orderItems)
+    .leftJoin(products, eq(orderItems.productId, products.id))
+    .leftJoin(categories, eq(products.categoryId, categories.id));
+
   const byOrder = new Map<number, PortalOrderItem[]>();
-  for (const item of allItems) {
-    const list = byOrder.get(item.orderId) ?? [];
-    list.push({
-      name: item.nameSnapshot,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      lineTotal: item.lineTotal,
-      options: item.selectedOptions,
-    });
-    byOrder.set(item.orderId, list);
+  for (const { orderId, ...item } of allItems) {
+    const list = byOrder.get(orderId) ?? [];
+    list.push(item);
+    byOrder.set(orderId, list);
   }
 
   return rows.map((order) => ({

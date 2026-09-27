@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, type PointerEvent } from "react";
 
@@ -8,18 +9,20 @@ import { formatCOP, formatPhone } from "@sistema/shared";
 
 import {
   ArrowRightIcon,
+  CancelIcon,
   ChatIcon,
   CheckIcon,
   ChevronDownIcon,
   ClockIcon,
+  MapIcon,
   PhoneIcon,
   PinIcon,
 } from "@/components/icons";
 import { StatusBadge } from "@/components/ui";
+import { categoryImage } from "@/lib/category-images";
 import { useMedia } from "@/lib/use-media";
 import {
   ADVANCE_LABEL,
-  ORDER_STATUS_FLOW,
   ORDER_STATUS_LABEL,
   STATUS_TONE,
   customerLabel,
@@ -31,14 +34,13 @@ import {
   urgency,
   type OrderStatus,
   type PortalOrder,
+  type PortalOrderLine,
 } from "@/lib/orders";
 
 type Props = {
   order: PortalOrder;
   now: number | null;
   fresh?: boolean;
-  /** Mostrar el estado en la tarjeta (cuando la columna no lo dice ya). */
-  showStatus?: boolean;
   /** Abrir el detalle al montar (llegando desde "Ver detalle"). */
   defaultExpanded?: boolean;
   onAdvance: (order: PortalOrder) => void;
@@ -55,6 +57,29 @@ const TIMER_STYLE = {
 } as const;
 
 /**
+ * Los dos botones del detalle: misma forma, distinto tinte.
+ *
+ * Blancos con anillo de color y sombra corta — antes eran una pastilla y un
+ * enlace subrayado, y nadie los leía como botones. Cada uno va **al lado del
+ * dato que abre** (la dirección, el teléfono) y solo baja a su propia línea,
+ * a lo ancho, cuando la tarjeta es angosta: `w-full` en un contenedor
+ * `flex-wrap` fuerza el salto de línea sin un segundo juego de marcado.
+ *
+ * El anillo se escribe completo en cada variante en vez de sobreescribir uno
+ * base: dos clases que fijan `--tw-ring-color` se resuelven por el orden de la
+ * hoja de estilos, no por el orden del `className`, así que "la última gana"
+ * no es cierto acá.
+ */
+const DETAIL_BUTTON =
+  "ease-ui inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-surface px-2.5 text-xs font-medium shadow-sm ring-1 active:scale-[0.98] sm:h-8 sm:w-auto";
+
+/** El rótulo de cada bloque del detalle. */
+const SECTION_LABEL = "text-[11px] font-semibold uppercase tracking-wide text-ink-3";
+
+/** Un bloque blanco sobre el panel gris del detalle. */
+const SECTION_BOX = "rounded-lg bg-surface p-3 shadow-sm ring-1 ring-black/5";
+
+/**
  * La comanda: un pedido tal como lo necesita la cocina.
  *
  * Tres formas de avanzarlo, todas a un solo gesto: el botón (siempre), deslizar
@@ -62,7 +87,7 @@ const TIMER_STYLE = {
  * (escritorio). Tocar la tarjeta despliega el detalle ahí mismo, sin abrir
  * otra pantalla.
  */
-export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, onAdvance, onSetStatus }: Props) {
+export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onSetStatus }: Props) {
   const [expanded, setExpanded] = useState(!!defaultExpanded);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [dx, setDx] = useState(0);
@@ -215,23 +240,13 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
                   {minutes === null ? "—" : elapsedLabel(minutes)}
                 </span>
               ) : null}
-              {showStatus || !active ? <StatusBadge status={order.status} /> : null}
+              {!active ? <StatusBadge status={order.status} /> : null}
             </div>
           </div>
 
-          <ul className="mt-3 space-y-1.5 border-t border-dashed border-line pt-3">
-            {order.items.map((item, i) => (
-              <li key={i} className="flex gap-2 text-sm leading-snug">
-                <span className="w-6 shrink-0 font-semibold tabular-nums text-ink">{item.quantity}×</span>
-                <span className="min-w-0">
-                  {item.name}
-                  {item.options.length > 0 ? (
-                    <span className="block text-[13px] text-ink-3">{item.options.map((o) => o.name).join(", ")}</span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-3 border-t border-dashed border-line pt-3">
+            <ItemLines items={order.items} expanded={expanded} />
+          </div>
 
           {order.address && !expanded ? (
             <p className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-2">
@@ -253,79 +268,73 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="space-y-4 border-t border-line bg-sunken/60 py-4 pl-5 pr-4 text-sm">
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <PinIcon className="h-4 w-4 shrink-0 translate-y-0.5 text-ink-3" />
-                    <div className="min-w-0">
-                      <p>{order.address ?? "Dirección sin confirmar"}</p>
+              {/* El panel va en gris sólido (antes `bg-sunken/60`, casi del
+                  color de la tarjeta) y por dentro en bloques blancos: así el
+                  detalle se lee como una zona aparte y cada grupo de datos
+                  queda separado del de al lado. */}
+              <div className="space-y-3 border-t border-line bg-sunken py-4 pl-5 pr-4 text-sm">
+                <section className={SECTION_BOX}>
+                  <p className={SECTION_LABEL}>Entrega</p>
+                  <div className="mt-2 space-y-2.5">
+                    <div className="flex flex-wrap items-start gap-2">
+                      <PinIcon className="h-4 w-4 shrink-0 translate-y-0.5 text-ink-3" />
+                      <p className={`min-w-0 flex-1 ${order.address ? "font-medium text-ink" : "text-ink-3"}`}>
+                        {order.address ?? "Dirección sin confirmar"}
+                      </p>
                       {order.address ? (
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-brand-ink underline-offset-2 hover:underline"
+                          className={`${DETAIL_BUTTON} text-maps-ink ring-maps/40 hover:bg-maps-soft`}
                         >
+                          <MapIcon className="h-3.5 w-3.5" />
                           Abrir en el mapa
                         </a>
                       ) : null}
                     </div>
-                  </div>
-                  {order.phone ? (
-                    <div className="flex items-center gap-2">
-                      <PhoneIcon className="h-4 w-4 shrink-0 text-ink-3" />
-                      <a href={`tel:+${order.phone}`} className="tabular-nums underline-offset-2 hover:underline">
-                        {formatPhone(order.phone)}
-                      </a>
-                      <Link
-                        href={`/conversaciones?tel=${order.phone}`}
-                        className="ease-ui ml-auto inline-flex h-9 items-center gap-1 rounded-full bg-whatsapp-soft px-3 text-xs font-medium text-whatsapp-ink hover:brightness-95 can-hover:h-7 can-hover:px-2.5"
-                      >
-                        <ChatIcon className="h-3.5 w-3.5" />
-                        Ver chat
-                      </Link>
-                    </div>
-                  ) : null}
-                </div>
-
-                <dl className="space-y-1 border-t border-line pt-3 tabular-nums">
-                  <div className="flex justify-between text-ink-2">
-                    <dt>Subtotal</dt>
-                    <dd>{formatCOP(order.subtotal)}</dd>
-                  </div>
-                  <div className="flex justify-between text-ink-2">
-                    <dt>Domicilio</dt>
-                    <dd>{formatCOP(order.deliveryFee)}</dd>
-                  </div>
-                </dl>
-
-                <div className="border-t border-line pt-3">
-                  <p className="text-xs font-medium text-ink-2">Cambiar estado</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {ORDER_STATUS_FLOW.map((s) => {
-                      const current = s === order.status;
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => onSetStatus(order, s)}
-                          disabled={current}
-                          className={`ease-ui inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium can-hover:h-7 ${
-                            current
-                              ? `${STATUS_TONE[s].soft} ${STATUS_TONE[s].ink}`
-                              : "bg-surface text-ink-2 shadow-sm ring-1 ring-black/10 hover:text-ink"
-                          }`}
+                    {order.phone ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PhoneIcon className="h-4 w-4 shrink-0 text-ink-3" />
+                        <a
+                          href={`tel:+${order.phone}`}
+                          className="flex-1 font-medium tabular-nums text-ink underline-offset-2 hover:underline"
                         >
-                          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_TONE[s].dot}`} />
-                          {ORDER_STATUS_LABEL[s]}
-                        </button>
-                      );
-                    })}
+                          {formatPhone(order.phone)}
+                        </a>
+                        <Link
+                          href={`/conversaciones?tel=${order.phone}`}
+                          className={`${DETAIL_BUTTON} text-whatsapp-ink ring-whatsapp/40 hover:bg-whatsapp-soft`}
+                        >
+                          <ChatIcon className="h-3.5 w-3.5" />
+                          Ver chat
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
+                </section>
+
+                <section className={SECTION_BOX}>
+                  <p className={SECTION_LABEL}>Cuenta</p>
+                  <dl className="mt-2 space-y-1 tabular-nums">
+                    <div className="flex justify-between text-ink-2">
+                      <dt>Subtotal</dt>
+                      <dd>{formatCOP(order.subtotal)}</dd>
+                    </div>
+                    <div className="flex justify-between text-ink-2">
+                      <dt>Domicilio</dt>
+                      <dd>{formatCOP(order.deliveryFee)}</dd>
+                    </div>
+                    <div className="flex justify-between border-t border-line pt-1.5 font-semibold text-ink">
+                      <dt>Total</dt>
+                      <dd>{formatCOP(order.total)}</dd>
+                    </div>
+                  </dl>
+                </section>
 
                 {order.status !== "cancelled" && order.status !== "delivered" ? (
                   confirmCancel ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-danger-soft px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 ring-1 ring-danger/20">
                       <p className="flex-1 font-medium text-danger-ink">¿Cancelar el pedido #{order.code}?</p>
                       <button
                         onClick={() => setConfirmCancel(false)}
@@ -341,10 +350,13 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
                       </button>
                     </div>
                   ) : (
+                    // Ya no compite con cuatro pastillas de "Cambiar estado":
+                    // es la única acción secundaria del detalle.
                     <button
                       onClick={() => setConfirmCancel(true)}
-                      className="-my-2 py-2 text-sm font-medium text-danger-ink underline-offset-2 hover:underline"
+                      className="ease-ui inline-flex h-11 items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-danger-ink hover:bg-danger-soft can-hover:h-9"
                     >
+                      <CancelIcon className="h-4 w-4" />
                       Cancelar pedido
                     </button>
                   )
@@ -379,6 +391,75 @@ export function OrderTicket({ order, now, fresh, showStatus, defaultExpanded, on
           ) : null}
         </footer>
       </article>
+    </div>
+  );
+}
+
+/**
+ * Los renglones del pedido, con la foto del producto.
+ *
+ * Es la misma lista cerrada y abierta: al abrir el detalle la foto crece y
+ * aparecen la categoría y el total de la línea. La foto va a la **derecha**,
+ * pegada al borde de la tarjeta — a la izquierda empujaría el nombre y las
+ * opciones a una columna angosta, que es justo lo que se estaba cortando en el
+ * celular.
+ */
+function ItemLines({ items, expanded }: { items: PortalOrderLine[]; expanded: boolean }) {
+  return (
+    <ul className={expanded ? "space-y-3" : "space-y-2"}>
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-3">
+          {/* `min-w-0` obligatorio: sin él el nombre largo fija el ancho
+              mínimo del renglón y vuelve a estirar la tarjeta. */}
+          <div className="min-w-0 flex-1">
+            {expanded && item.categoryName ? <p className={SECTION_LABEL}>{item.categoryName}</p> : null}
+            <p className="flex gap-1.5 text-sm leading-snug">
+              <span className="shrink-0 font-semibold tabular-nums text-ink">{item.quantity}×</span>
+              <span className="min-w-0 font-medium text-ink">{item.name}</span>
+            </p>
+            {item.options.length > 0 ? (
+              <p className="mt-0.5 text-[13px] leading-snug text-ink-3">
+                {item.options.map((o) => o.name).join(" · ")}
+              </p>
+            ) : null}
+            {expanded ? (
+              <p className="mt-1 text-[13px] font-medium tabular-nums text-ink-2">{formatCOP(item.lineTotal)}</p>
+            ) : null}
+          </div>
+          <ItemPhoto item={item} expanded={expanded} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * La foto de un renglón.
+ *
+ * Si el producto tiene foto propia se usa esa; si no, la misma foto de
+ * categoría que ve el cliente en el menú público (`categoryImage`). Un renglón
+ * cuyo producto ya no existe en el catálogo no tiene categoría: cae en la foto
+ * genérica y no se rompe.
+ */
+function ItemPhoto({ item, expanded }: { item: PortalOrderLine; expanded: boolean }) {
+  return (
+    <div
+      className={`ease-ui shrink-0 overflow-hidden rounded-lg bg-sunken ring-1 ring-black/5 ${
+        expanded ? "h-14 w-14" : "h-10 w-10"
+      }`}
+    >
+      {item.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- el catálogo es dinámico; next/image exige dominios remotos conocidos de antemano.
+        <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <Image
+          src={categoryImage(item.categorySlug ?? "")}
+          alt=""
+          placeholder="blur"
+          sizes="56px"
+          className="h-full w-full object-cover"
+        />
+      )}
     </div>
   );
 }
