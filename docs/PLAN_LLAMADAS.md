@@ -1,8 +1,32 @@
 # PLAN — Pedidos por llamada (agente de voz → portal)
 
-> **Estado: plan, sin una línea de código escrita.** Listo para ejecutar.
-> Toca **dos repos**: este y `demo-voice-agent`
-> (`github.com/Jdavidruanob/demo-voice-agent`).
+> **Estado: ejecutado (2026-09-27).** Este documento se deja como el plan con
+> el que se construyó. Lo que quedó hecho está en `STATUS.md` § Fase 8 y en
+> ADR-13; el repo de voz lo documenta en su `docs/ARQUITECTURA.md`.
+>
+> **Dónde difiere lo construido del plan** (y por qué):
+>
+> - **Los productos se identifican por SKU, no por id numérico.** Es lo que el
+>   catálogo ya devolvía y lo que el agente ve en su prompt.
+> - **`buildOrderLines` no devuelve un `ok: true | false`**, sino las líneas
+>   que sí se armaron *más* las listas de rechazos. El menú las ignora, la voz
+>   falla con ellas. Con un discriminado, el menú habría tenido que fingir que
+>   nunca falla.
+> - **Exigir los grupos obligatorios es opcional** (`requireOptionGroups`). El
+>   menú **no puede** exigirlos: el link `?add=SKU:2` que manda el bot no trae
+>   opciones, y rechazarlo dejaría al cliente con un carrito vacío sin saber
+>   por qué.
+> - **El plazo de la página es uno solo de 12 s**, no 8 s para el agente. Con
+>   8 s medidos desde después de conectar, un `LIVEKIT_URL` muerto dejaba la
+>   pantalla congelada igual: el reloj tiene que arrancar en el clic.
+> - **`web/main.py` no importa `brasa/`**: se construye con `web/` como
+>   contexto en Railway. Repite seis líneas de un GET en vez de acoplar los dos
+>   contextos de build.
+> - **Se agregó `scripts/verify_contrato.py`** en el repo de voz, para el
+>   `AGENT_NAME` y los demás fallos silenciosos.
+>
+> Toca **dos repos**: este (rama `llamadas`) y `demo-voice-agent`
+> (rama `brasa-y-pan`).
 
 ---
 

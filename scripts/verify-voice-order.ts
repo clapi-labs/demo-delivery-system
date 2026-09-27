@@ -42,6 +42,13 @@ type VoiceResponse = {
   reason?: string;
 };
 
+/** Los pedidos que se crearon, para borrarlos al final.
+ *
+ *  Vive fuera de `main` porque la limpieza corre en un `finally`: una prueba que
+ *  falla a mitad dejaba comandas de prueba en el portal, y eso es peor que el
+ *  fallo — alguien las ve en el tablero y no sabe de dónde salieron. */
+const codes: string[] = [];
+
 async function main() {
   const { POST } = await import("../apps/menu/src/app/api/internal/voice-order/route");
   const { GET: CATALOG } = await import("../apps/menu/src/app/api/internal/catalog/route");
@@ -58,7 +65,6 @@ async function main() {
     (p) => p.available && p.optionGroups.some((g) => g.required && g.options.length > 0),
   );
 
-  const codes: string[] = [];
   let callSeq = 0;
   const nextCallId = () => `verify-${Date.now()}-${++callSeq}`;
 
@@ -224,6 +230,9 @@ async function main() {
   ok("el pedido se toma igual", r10.status === 201);
   ok("y avisa que no se pudo encolar el WhatsApp", b10.notified === false);
 
+}
+
+async function limpiar() {
   for (const code of codes) {
     const [row] = await db.select({ id: orders.id }).from(orders).where(eq(orders.code, code));
     if (row) {
@@ -231,11 +240,19 @@ async function main() {
       await db.delete(orders).where(eq(orders.id, row.id));
     }
   }
-  console.log(`\nLimpieza: ${codes.length} pedidos de prueba borrados.`);
-  process.exit(0);
+  if (codes.length > 0) {
+    console.log(`\nLimpieza: ${codes.length} pedidos de prueba borrados.`);
+  }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(async () => {
+    await limpiar();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error(err);
+    // Se limpia igual: un fallo no puede dejar comandas de prueba en la cocina.
+    await limpiar().catch((e) => console.error("no se pudo limpiar:", e));
+    process.exit(1);
+  });
