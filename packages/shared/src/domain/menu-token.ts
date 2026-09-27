@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { signToken, verifyToken } from "./signed-token";
 
 /**
  * El token firmado que viaja en el link del menú.
@@ -14,10 +14,10 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  *
  * No es una sesión ni una credencial: no da acceso a nada, solo identifica el
  * hilo. Y **caduca**, para que un link viejo reenviado a un grupo no siga
- * sirviendo.
+ * sirviendo. La firma y la caducidad las hace `signed-token.ts`, que comparte
+ * con el link del repartidor.
  */
 
-const SEPARATOR = ".";
 const DEFAULT_TTL_HOURS = 24;
 
 export type MenuTokenPayload = {
@@ -29,36 +29,8 @@ export type MenuTokenPayload = {
   exp: number;
 };
 
-function base64url(input: Buffer | string) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-function fromBase64url(input: string) {
-  return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/"), "base64");
-}
-
-function sign(data: string, secret: string) {
-  return base64url(createHmac("sha256", secret).update(data).digest());
-}
-
-export function createMenuToken(
-  phone: string,
-  secret: string,
-  ttlHours = DEFAULT_TTL_HOURS,
-) {
-  const now = Math.floor(Date.now() / 1000);
-  const payload: MenuTokenPayload = {
-    phone,
-    iat: now,
-    exp: now + ttlHours * 3600,
-  };
-
-  const body = base64url(JSON.stringify(payload));
-  return `${body}${SEPARATOR}${sign(body, secret)}`;
+export function createMenuToken(phone: string, secret: string, ttlHours = DEFAULT_TTL_HOURS) {
+  return signToken({ phone }, secret, ttlHours);
 }
 
 /**
@@ -72,26 +44,8 @@ export function verifyMenuToken(
   token: string | null | undefined,
   secret: string,
 ): MenuTokenPayload | null {
-  if (!token) return null;
-
-  const [body, signature] = token.split(SEPARATOR);
-  if (!body || !signature) return null;
-
-  const expected = sign(body, secret);
-
-  // Comparación en tiempo constante: comparar firmas con `===` filtra
-  // información sobre cuántos caracteres coinciden.
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-
-  try {
-    const payload = JSON.parse(fromBase64url(body).toString()) as MenuTokenPayload;
-    if (typeof payload.phone !== "string" || !payload.phone) return null;
-    if (typeof payload.exp !== "number") return null;
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return payload;
-  } catch {
-    return null;
-  }
+  return verifyToken<{ phone: string }>(token, secret, (raw) => {
+    const phone = (raw as { phone?: unknown }).phone;
+    return typeof phone === "string" && phone ? { phone } : null;
+  });
 }

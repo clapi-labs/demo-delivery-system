@@ -3,7 +3,7 @@ import { Geist } from "next/font/google";
 
 import { BUSINESS } from "@sistema/shared";
 
-import { MobileTabBar, Sidebar } from "@/components/Navigation";
+import { AppShell } from "@/components/AppShell";
 import { AppProviders } from "@/components/providers/AppProviders";
 
 import "./globals.css";
@@ -29,15 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="es" className={sans.variable}>
       <body className="h-dvh overflow-hidden">
         <AppProviders>
-          <div className="flex h-dvh w-full overflow-hidden">
-            <Sidebar businessName={BUSINESS.name} />
-            {/* `relative`: todo lo absoluto de las páginas se posiciona (y se recorta)
-                dentro de <main>, no contra la ventana. */}
-            <main className="pb-tabbar relative h-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pt-[env(safe-area-inset-top)] md:pb-0">
-              {children}
-            </main>
-          </div>
-          <MobileTabBar />
+          <AppShell businessName={BUSINESS.name}>{children}</AppShell>
         </AppProviders>
       </body>
     </html>

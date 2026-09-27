@@ -17,6 +17,7 @@
 import { CATALOG } from "@sistema/shared/db/seed-data";
 
 import type { InboxConversation, InboxMessage } from "./inbox";
+import type { Courier, Settlement } from "./logistics";
 import type { MenuCategory, MenuProduct, MenuSymbolName, Promotion } from "./menu";
 import type { OrderStatus, PortalOrder } from "./orders";
 
@@ -72,12 +73,36 @@ function order(
     phone,
     customerName,
     address,
+    addressNotes: null,
     paymentMethod,
     subtotal,
     deliveryFee: 5000,
     total: subtotal + 5000,
     createdAt: ago(minutesAgo),
     items,
+    delivery: null,
+  };
+}
+
+/** Una asignación de mentira, para ver la tarjeta con repartidor puesto. */
+function assigned(
+  order: PortalOrder,
+  courierName: string,
+  kind: "internal" | "agency",
+  extra: { vehicleCode?: string; paymentMode?: "cash_base" | "account"; delivered?: boolean } = {},
+): PortalOrder {
+  return {
+    ...order,
+    delivery: {
+      courierId: kind === "agency" ? 3 : courierName.startsWith("Carlos") ? 1 : 2,
+      courierName,
+      kind,
+      paymentMode: kind === "agency" ? (extra.paymentMode ?? "cash_base") : null,
+      vehicleCode: extra.vehicleCode ?? null,
+      notifiedAt: kind === "internal" ? order.createdAt : null,
+      dispatchedAt: order.createdAt,
+      deliveredAt: extra.delivered ? order.createdAt : null,
+    },
   };
 }
 
@@ -105,26 +130,52 @@ export function demoOrders(): PortalOrder[] {
       ["Yuca Frita", 2, 9000],
       ["Gaseosa 400 ml", 3, 4000, ["Naranja"]],
     ]),
-    order(9, "R6CJTN", "sent", 31, "María López", "573002223344", "Carrera 9 #67-21, torre 2", "datafono", [
-      ["Hamburguesa Clásica", 1, 18000, ["Término medio"]],
-      ["Brownie con Helado", 1, 12000],
-    ]),
-    order(8, "Z3FWQK", "sent", 38, "Laura Ramírez", "573006667788", "Carrera 15 #88-40", "transferencia", [
-      ["Wrap de Pollo Crispy", 2, 17000],
-      ["Limonada de Coco", 2, 9000],
-    ]),
-    order(7, "T7GMHX", "delivered", 64, "Carlos Ruiz", "573003334455", "Calle 80 #14-06", "efectivo", [
-      ["Alitas x6", 1, 22000, ["Búfalo"]],
-      ["Papas a la Francesa", 1, 8000],
-    ]),
-    order(6, "N4DKQA", "delivered", 95, "Felipe Ortiz", "573005556677", "Calle 127 #52-10", "transferencia", [
-      ["Doble Tocineta", 1, 26000],
-      ["Gaseosa 400 ml", 1, 4000, ["Cola sin azúcar"]],
-    ]),
-    order(5, "J9WRTC", "delivered", 130, "Valentina Reyes", "573001110022", "Carrera 50 #26-70", "datafono", [
-      ["Hamburguesa de Pollo", 2, 19000],
-      ["Deditos de Pollo", 1, 15000],
-    ]),
+    // Los dos que van en camino salen ya asignados: uno con moto propia y
+    // otro con la agencia, que es el escenario que hay que poder mostrar.
+    assigned(
+      order(9, "R6CJTN", "sent", 31, "María López", "573002223344", "Carrera 9 #67-21, torre 2", "datafono", [
+        ["Hamburguesa Clásica", 1, 18000, ["Término medio"]],
+        ["Brownie con Helado", 1, 12000],
+      ]),
+      "Carlos Pérez",
+      "internal",
+    ),
+    assigned(
+      order(8, "Z3FWQK", "sent", 38, "Laura Ramírez", "573006667788", "Carrera 15 #88-40", "transferencia", [
+        ["Wrap de Pollo Crispy", 2, 17000],
+        ["Limonada de Coco", 2, 9000],
+      ]),
+      "Bejarano Mensajería",
+      "agency",
+      { vehicleCode: "M-12", paymentMode: "account" },
+    ),
+    assigned(
+      order(7, "T7GMHX", "delivered", 64, "Carlos Ruiz", "573003334455", "Calle 80 #14-06", "efectivo", [
+        ["Alitas x6", 1, 22000, ["Búfalo"]],
+        ["Papas a la Francesa", 1, 8000],
+      ]),
+      "Carlos Pérez",
+      "internal",
+      { delivered: true },
+    ),
+    assigned(
+      order(6, "N4DKQA", "delivered", 95, "Felipe Ortiz", "573005556677", "Calle 127 #52-10", "transferencia", [
+        ["Doble Tocineta", 1, 26000],
+        ["Gaseosa 400 ml", 1, 4000, ["Cola sin azúcar"]],
+      ]),
+      "Bejarano Mensajería",
+      "agency",
+      { vehicleCode: "M-07", paymentMode: "account", delivered: true },
+    ),
+    assigned(
+      order(5, "J9WRTC", "delivered", 130, "Valentina Reyes", "573001110022", "Carrera 50 #26-70", "efectivo", [
+        ["Hamburguesa de Pollo", 2, 19000],
+        ["Deditos de Pollo", 1, 15000],
+      ]),
+      "Andrés Mina",
+      "internal",
+      { delivered: true },
+    ),
     order(4, "E2HQMP", "cancelled", 150, "Sebastián Mora", "573112223344", "Calle 34 #20-11", "efectivo", [
       ["Hamburguesa Clásica", 1, 18000],
     ]),
@@ -168,6 +219,93 @@ export function demoIncomingOrder(): PortalOrder {
     ["Aros de Cebolla", 1, 10000],
   ]);
   return { ...fresh, createdAt: new Date().toISOString() };
+}
+
+// --- Repartidores ------------------------------------------------------------
+
+/**
+ * La libreta de la demo: los mismos tres del catálogo semilla (`COURIERS`),
+ * con ids fijos para que las asignaciones de arriba les cuadren.
+ *
+ * El link del repartidor no se firma acá —no hay secreto en el navegador— así
+ * que apunta a la pantalla con un token de mentira: sirve para ver el botón de
+ * copiar, no para abrir la pantalla.
+ */
+export function demoCouriers(): Courier[] {
+  return [
+    {
+      id: 1,
+      kind: "internal",
+      name: "Carlos Pérez",
+      phone: "573001112244",
+      paymentMode: null,
+      notes: "Turno de la tarde. Moto propia.",
+      active: true,
+      sortOrder: 0,
+      driverUrl: "https://ejemplo.com/repartidor?t=demo-carlos",
+    },
+    {
+      id: 2,
+      kind: "internal",
+      name: "Andrés Mina",
+      phone: "573155556611",
+      paymentMode: null,
+      notes: "Turno de la noche.",
+      active: true,
+      sortOrder: 1,
+      driverUrl: "https://ejemplo.com/repartidor?t=demo-andres",
+    },
+    {
+      id: 3,
+      kind: "agency",
+      name: "Bejarano Mensajería",
+      phone: "573112223300",
+      paymentMode: "cash_base",
+      notes: "Central de despacho. Responden con el número de la moto.",
+      active: true,
+      sortOrder: 2,
+      driverUrl: null,
+    },
+  ];
+}
+
+/** El cierre de turno de la demo, calculado sobre los pedidos de arriba. */
+export function demoSettlement(orders: PortalOrder[]): Settlement[] {
+  const rows = new Map<string, Settlement>();
+
+  for (const order of orders) {
+    const d = order.delivery;
+    if (!d || order.status === "cancelled") continue;
+
+    const key = `${d.kind}:${d.courierName}`;
+    const entry =
+      rows.get(key) ??
+      ({
+        courierId: d.courierId,
+        courierName: d.courierName,
+        kind: d.kind,
+        delivered: 0,
+        pending: 0,
+        total: 0,
+        cash: 0,
+        account: 0,
+      } satisfies Settlement);
+
+    // Igual que en la consulta real: el pedido cerrado en el tablero cuenta
+    // como entregado aunque el repartidor no lo haya marcado.
+    if (d.deliveredAt || order.status === "delivered") {
+      entry.delivered += 1;
+      entry.total += order.total;
+      if (d.kind === "agency" && d.paymentMode === "account") entry.account += order.total;
+      else if (!order.paymentMethod || order.paymentMethod === "efectivo") entry.cash += order.total;
+    } else {
+      entry.pending += 1;
+    }
+
+    rows.set(key, entry);
+  }
+
+  return [...rows.values()].sort((a, b) => b.total - a.total);
 }
 
 // --- Conversaciones ----------------------------------------------------------

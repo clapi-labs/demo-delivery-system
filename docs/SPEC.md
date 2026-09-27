@@ -57,6 +57,11 @@ Lo que ve el restaurante, en una sola pantalla:
   (Pendiente → En preparación → En camino → Entregado).
 - **Conversaciones** — la bandeja: lista de chats, hilo, y el control del
   asistente (pausar / responder / reactivar). Reemplaza a Chatwoot (ADR-04).
+- **Domicilios** — quién lleva cada pedido: la libreta de domiciliarios
+  propios y de flotas externas, y el cierre de turno (ADR-12). Asignar se hace
+  desde la comanda: al propio se le manda la ficha por WhatsApp y él marca la
+  entrega desde su link; a la flota se le abre el chat con la ficha puesta,
+  porque esa conversación sale del WhatsApp del restaurante, no del bot.
 - **Resumen** — pedidos del día, ticket promedio, productos más pedidos.
 
 ## 4. La regla central: el chat guía, el menú vende
@@ -113,7 +118,10 @@ Tres reglas de Meta que atraviesan todo el diseño:
 | No hace | Por qué |
 |---|---|
 | Reconocimiento difuso de productos, RAG, alias | El menú-first lo vuelve innecesario (§4) |
-| Domiciliarios que se autoasignan | Se muestra el cambio de estado, no el rol completo |
+| Domiciliarios que se autoasignan | El cajero asigna; el domiciliario solo marca la entrega (ADR-12) |
+| Rastreo en vivo de la moto | Exige la pantalla abierta gastando datos y batería, y no cambia nada de lo que el restaurante decide |
+| Asignación automática por cercanía | Exigiría geocodificar direcciones colombianas escritas a mano; es un problema más grande que el que resuelve |
+| App para el domiciliario | Nadie instala nada. Un link firmado sin contraseña sí se usa |
 | Integración con POS | No hay POS que integrar |
 | Multi-restaurante | Un solo negocio. Multi-tenant se agrega si el producto lo pide |
 | Autenticación del portal | Pendiente. Para grabar da igual; antes de un cliente real, no |

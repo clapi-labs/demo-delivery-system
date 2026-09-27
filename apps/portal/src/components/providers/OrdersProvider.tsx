@@ -44,6 +44,9 @@ type OrdersContext = {
   setStatus: (order: PortalOrder, status: OrderStatus, opts?: { silent?: boolean }) => void;
   /** Al siguiente paso del flujo: el gesto principal del tablero. */
   advance: (order: PortalOrder) => void;
+  /** Volver a traerlos ya, sin esperar el próximo sondeo. Lo usa lo que
+   *  cambia un pedido por fuera de este provider (asignar un repartidor). */
+  refresh: () => void;
 };
 
 const Context = createContext<OrdersContext | null>(null);
@@ -168,8 +171,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ orders, loading, error, freshIds, setStatus, advance }),
-    [orders, loading, error, freshIds, setStatus, advance],
+    () => ({ orders, loading, error, freshIds, setStatus, advance, refresh: load }),
+    [orders, loading, error, freshIds, setStatus, advance, load],
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

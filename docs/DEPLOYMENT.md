@@ -135,9 +135,18 @@ Tres proyectos desde el mismo repo. En cada uno, *Root Directory*:
 |---|---|---|
 | `bot` | `apps/bot` | Todas |
 | `menu` | `apps/menu` | `DATABASE_URL`, `MENU_TOKEN_SECRET`, `INTERNAL_SECRET`, `BOT_URL`, negocio |
-| `portal` | `apps/portal` | `DATABASE_URL`, `INTERNAL_SECRET`, `BOT_URL`, negocio |
+| `portal` | `apps/portal` | `DATABASE_URL`, `INTERNAL_SECRET`, `BOT_URL`, `MENU_TOKEN_SECRET` (o `COURIER_TOKEN_SECRET`), negocio |
 
 **Orden que importa:** las variables se cargan **antes** del primer deploy.
+
+**Para los domicilios (Fase 7, ADR-12)** hacen falta dos cosas en el portal:
+
+- `MENU_TOKEN_SECRET` (o un `COURIER_TOKEN_SECRET` propio). Es lo que firma el
+  link de la pantalla del repartidor. Sin ninguno de los dos el portal no
+  genera esos links y lo dice en pantalla; el resto sigue funcionando.
+- `BUSINESS_ADDRESS`. Es el "recoger en" de la ficha que se le manda a una
+  flota externa. Sin ella la ficha lo advierte en su lugar, así que el cajero
+  lo ve antes de enviarla — pero hay que llenarla.
 
 Después del primer despliegue hay que volver atrás y rellenar `MENU_URL`,
 `PORTAL_URL` y `BOT_URL` con las URLs reales — no se conocen hasta que Vercel

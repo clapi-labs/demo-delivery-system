@@ -12,7 +12,7 @@ import { minutesBetween, urgency } from "@/lib/orders";
 import { DEMO_MODE } from "@/lib/portal-api";
 import { useNow } from "@/lib/use-now";
 
-import { BotIcon, ChatIcon, ChevronDownIcon, HomeIcon, MenuBookIcon, OrdersIcon } from "./icons";
+import { BikeIcon, BotIcon, ChatIcon, ChevronDownIcon, HomeIcon, MenuBookIcon, OrdersIcon } from "./icons";
 
 /**
  * Navegación en tres tamaños:
@@ -40,6 +40,11 @@ function useNavItems() {
   const now = useNow();
   const pending = orders.filter((o) => o.status === "pending");
   const late = now !== null && pending.some((o) => urgency("pending", minutesBetween(o.createdAt, now)) === "late");
+  // Pedidos en la cocina a los que todavía nadie les puso repartidor: es lo
+  // que hay que resolver antes de que salgan (RF-50).
+  const unassigned = orders.filter(
+    (o) => (o.status === "pending" || o.status === "preparing") && !o.delivery,
+  ).length;
 
   return [
     { href: "/", label: "Inicio", short: "Inicio", icon: HomeIcon, badge: 0, tone: "brand" as BadgeTone },
@@ -58,6 +63,14 @@ function useNavItems() {
       icon: ChatIcon,
       badge: attentionCount,
       tone: "warn" as BadgeTone,
+    },
+    {
+      href: "/domicilios",
+      label: "Domicilios",
+      short: "Envíos",
+      icon: BikeIcon,
+      badge: unassigned,
+      tone: "brand" as BadgeTone,
     },
     { href: "/menu", label: "Menú", short: "Menú", icon: MenuBookIcon, badge: 0, tone: "brand" as BadgeTone },
   ];
@@ -220,7 +233,7 @@ export function MobileTabBar() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/5 bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
-      <ul className="grid h-16 grid-cols-4">
+      <ul className="grid h-16 grid-cols-5">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (

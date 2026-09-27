@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import type { CourierKind, CourierPayment } from "../domain/delivery";
 import type { OrderStatus } from "../domain/order-status";
 import type { PaymentMethod } from "../domain/payment";
 import type { PromotionKind, PromotionScope } from "../domain/promotions";
@@ -282,6 +283,81 @@ export const orderItems = pgTable("order_items", {
     .default([]),
   lineTotal: integer("line_total").notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// Logística: quién se lleva el pedido
+// ---------------------------------------------------------------------------
+
+/** Ver `domain/delivery.ts` por qué los tipos no viven en este archivo. */
+export type { CourierKind, CourierPayment };
+
+/**
+ * La libreta de quién reparte: domiciliarios propios y flotas externas.
+ *
+ * **Una sola tabla con `kind`, no dos.** Un domiciliario fijo y una agencia
+ * son lo mismo para el pedido —alguien a quien se le entrega y a quien se le
+ * manda una ficha por WhatsApp—; lo único que cambia es quién marca la
+ * entrega. Dos tablas obligarían a unir o a duplicar cada consulta del
+ * tablero y del arqueo para no ganar nada.
+ */
+export const couriers = pgTable("couriers", {
+  id: serial("id").primaryKey(),
+  kind: text("kind").notNull().$type<CourierKind>().default("internal"),
+  name: text("name").notNull(),
+  /** Internacional sin `+`: es un `wa_id`, el mismo formato que el cliente. */
+  phone: text("phone").notNull(),
+  /**
+   * Cómo cobra una flota externa lo que recoge. Nulo en los propios: a un
+   * domiciliario de la casa no se le liquida por pedido.
+   */
+  paymentMode: text("payment_mode").$type<CourierPayment>(),
+  /** Lo que el restaurante quiera recordar: turno, placa, tarifa acordada. */
+  notes: text("notes"),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * La asignación de un pedido a quien lo lleva. Una fila por pedido.
+ *
+ * **Nombre y modalidad van congelados**, como el nombre del producto en
+ * `order_items` y por la misma razón: borrar un domiciliario no puede
+ * reescribir el arqueo de la semana pasada. `courier_id` queda en nulo y la
+ * fila sigue contando quién lo llevó.
+ *
+ * Las cuatro marcas de tiempo son el recibo de la operación: cuándo se
+ * asignó, cuándo se le avisó por WhatsApp, cuándo salió del local y cuándo
+ * llegó. Sin ellas, "¿a qué hora salió ese pedido?" no tiene respuesta.
+ */
+export const deliveries = pgTable(
+  "deliveries",
+  {
+    id: serial("id").primaryKey(),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    courierId: integer("courier_id").references(() => couriers.id, {
+      onDelete: "set null",
+    }),
+    courierName: text("courier_name").notNull(),
+    kind: text("kind").notNull().$type<CourierKind>(),
+    paymentMode: text("payment_mode").$type<CourierPayment>(),
+    /** El "M-12" que contesta la agencia en el chat. Opcional a propósito:
+     *  el pedido sale igual si nadie lo escribe. */
+    vehicleCode: text("vehicle_code"),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  },
+  (t) => [
+    // Un pedido tiene un solo responsable: reasignar SUSTITUYE la fila, no
+    // agrega una segunda. Que lo garantice la base y no el código.
+    uniqueIndex("deliveries_order_idx").on(t.orderId),
+    index("deliveries_courier_idx").on(t.courierId),
+  ],
+);
 
 /**
  * Outbox de avisos al cliente.

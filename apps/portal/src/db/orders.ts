@@ -1,8 +1,10 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 
+import type { CourierKind, CourierPayment, DeliveryOrder } from "@sistema/shared";
 import {
   categories,
   db,
+  deliveriesByOrder,
   orderItems,
   orders,
   products,
@@ -43,6 +45,18 @@ export type PortalOrderItem = {
  */
 export type PortalOrderStatus = Exclude<OrderStatus, "draft">;
 
+/** Quién lleva el pedido, si ya se asignó (RF-50). */
+export type PortalDelivery = {
+  courierId: number | null;
+  courierName: string;
+  kind: CourierKind;
+  paymentMode: CourierPayment | null;
+  vehicleCode: string | null;
+  notifiedAt: Date | null;
+  dispatchedAt: Date | null;
+  deliveredAt: Date | null;
+};
+
 export type PortalOrder = {
   id: number;
   code: string;
@@ -50,12 +64,14 @@ export type PortalOrder = {
   phone: string | null;
   customerName: string | null;
   address: string | null;
+  addressNotes: string | null;
   paymentMethod: PaymentMethod | null;
   subtotal: number;
   deliveryFee: number;
   total: number;
   createdAt: Date;
   items: PortalOrderItem[];
+  delivery: PortalDelivery | null;
 };
 
 export async function getPortalOrders(): Promise<PortalOrder[]> {
@@ -98,6 +114,10 @@ export async function getPortalOrders(): Promise<PortalOrder[]> {
     byOrder.set(orderId, list);
   }
 
+  // Quién lleva cada uno. Una consulta para los 100 pedidos de la página, no
+  // una por tarjeta.
+  const assigned = await deliveriesByOrder(rows.map((o) => o.id));
+
   return rows.map((order) => ({
     id: order.id,
     code: order.code,
@@ -107,13 +127,47 @@ export async function getPortalOrders(): Promise<PortalOrder[]> {
     phone: order.phone,
     customerName: order.customerName,
     address: order.address,
+    addressNotes: order.addressNotes,
     paymentMethod: order.paymentMethod,
     subtotal: order.subtotal,
     deliveryFee: order.deliveryFee,
     total: order.total,
     createdAt: order.createdAt,
     items: byOrder.get(order.id) ?? [],
+    delivery: assigned.get(order.id) ?? null,
   }));
+}
+
+/**
+ * Un pedido con lo que necesita quien lo va a llevar (RF-51).
+ *
+ * Es una consulta aparte y no un filtro sobre `getPortalOrders()` porque se
+ * pide para UN pedido, al asignarlo: traer cien para usar uno es un viaje a la
+ * base por gusto.
+ */
+export async function getOrderForDelivery(orderId: number): Promise<DeliveryOrder | null> {
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), ne(orders.status, "draft")))
+    .limit(1);
+  if (!order) return null;
+
+  const items = await db
+    .select({ quantity: orderItems.quantity, name: orderItems.nameSnapshot })
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
+  return {
+    code: order.code,
+    customerName: order.customerName,
+    phone: order.phone,
+    address: order.address,
+    addressNotes: order.addressNotes,
+    total: order.total,
+    paymentMethod: order.paymentMethod,
+    items,
+  };
 }
 
 /**

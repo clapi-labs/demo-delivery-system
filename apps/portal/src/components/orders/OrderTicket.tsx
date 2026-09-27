@@ -9,6 +9,7 @@ import { formatCOP, formatPhone } from "@sistema/shared";
 
 import {
   ArrowRightIcon,
+  BikeIcon,
   CancelIcon,
   ChatIcon,
   CheckIcon,
@@ -17,6 +18,7 @@ import {
   MapIcon,
   PhoneIcon,
   PinIcon,
+  StoreIcon,
 } from "@/components/icons";
 import { StatusBadge } from "@/components/ui";
 import { categoryImage } from "@/lib/category-images";
@@ -36,6 +38,8 @@ import {
   type PortalOrder,
   type PortalOrderLine,
 } from "@/lib/orders";
+
+import { DispatchSheet } from "./DispatchSheet";
 
 type Props = {
   order: PortalOrder;
@@ -90,6 +94,11 @@ const SECTION_BOX = "rounded-lg bg-surface p-3 shadow-sm ring-1 ring-black/5";
 export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onSetStatus }: Props) {
   const [expanded, setExpanded] = useState(!!defaultExpanded);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // La hoja de asignación se **remonta** en cada apertura (`openings` le
+  // cambia la `key`) para que arranque con lo que el pedido tiene ahora, sin
+  // reiniciar su estado con un efecto.
+  const [dispatchOpen, setDispatchOpen] = useState(false);
+  const [openings, setOpenings] = useState(0);
   const [dx, setDx] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [width, setWidth] = useState(320);
@@ -173,6 +182,11 @@ export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onS
     setConfirmCancel(false);
   };
 
+  const openDispatch = () => {
+    setOpenings((n) => n + 1);
+    setDispatchOpen(true);
+  };
+
   const swiping = dx > 0;
 
   return (
@@ -248,14 +262,33 @@ export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onS
             <ItemLines items={order.items} expanded={expanded} />
           </div>
 
-          {order.address && !expanded ? (
-            <p className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-2">
-              <PinIcon className="h-3.5 w-3.5 shrink-0 text-ink-3" />
-              {/* `min-w-0` es lo que deja que `truncate` recorte de verdad:
-                  sin él, la dirección en una línea es el ancho mínimo del
-                  párrafo y estiraba la tarjeta más allá de la pantalla. */}
-              <span className="min-w-0 truncate">{order.address}</span>
-            </p>
+          {!expanded ? (
+            <div className="mt-3 space-y-1">
+              {order.address ? (
+                <p className="flex items-center gap-1.5 text-[13px] text-ink-2">
+                  <PinIcon className="h-3.5 w-3.5 shrink-0 text-ink-3" />
+                  {/* `min-w-0` es lo que deja que `truncate` recorte de verdad:
+                      sin él, la dirección en una línea es el ancho mínimo del
+                      párrafo y estiraba la tarjeta más allá de la pantalla. */}
+                  <span className="min-w-0 truncate">{order.address}</span>
+                </p>
+              ) : null}
+              {/* Quién lo lleva, sin abrir nada: en la cocina la pregunta
+                  "¿este ya tiene moto?" se hace a gritos cada dos minutos. */}
+              {order.delivery ? (
+                <p className="flex items-center gap-1.5 text-[13px] text-ink-2">
+                  {order.delivery.kind === "agency" ? (
+                    <StoreIcon className="h-3.5 w-3.5 shrink-0 text-ink-3" />
+                  ) : (
+                    <BikeIcon className="h-3.5 w-3.5 shrink-0 text-ink-3" />
+                  )}
+                  <span className="min-w-0 truncate">
+                    {order.delivery.courierName}
+                    {order.delivery.vehicleCode ? ` · ${order.delivery.vehicleCode}` : ""}
+                  </span>
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
@@ -313,6 +346,51 @@ export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onS
                     ) : null}
                   </div>
                 </section>
+
+                {/* Quién lo lleva (RF-50). Un pedido cancelado no se
+                    despacha, así que ahí no se ofrece. */}
+                {order.status !== "cancelled" ? (
+                  <section className={SECTION_BOX}>
+                    <p className={SECTION_LABEL}>Repartidor</p>
+                    {order.delivery ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sunken text-ink-2">
+                          {order.delivery.kind === "agency" ? (
+                            <StoreIcon className="h-4 w-4" />
+                          ) : (
+                            <BikeIcon className="h-4 w-4" />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-ink">
+                            {order.delivery.courierName}
+                          </span>
+                          <span className="block truncate text-xs text-ink-3">
+                            {order.delivery.vehicleCode ? `Moto ${order.delivery.vehicleCode} · ` : ""}
+                            {order.delivery.deliveredAt
+                              ? "Entregado"
+                              : order.delivery.dispatchedAt
+                                ? "En la calle"
+                                : order.delivery.notifiedAt
+                                  ? "Avisado por WhatsApp"
+                                  : "Asignado"}
+                          </span>
+                        </span>
+                        <button onClick={openDispatch} className={`${DETAIL_BUTTON} text-ink ring-black/10 hover:bg-sunken`}>
+                          Ver ficha
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={openDispatch}
+                        className={`${DETAIL_BUTTON} mt-2 text-ink ring-black/10 hover:bg-sunken`}
+                      >
+                        <BikeIcon className="h-3.5 w-3.5" />
+                        Asignar repartidor
+                      </button>
+                    )}
+                  </section>
+                ) : null}
 
                 <section className={SECTION_BOX}>
                   <p className={SECTION_LABEL}>Cuenta</p>
@@ -391,6 +469,14 @@ export function OrderTicket({ order, now, fresh, defaultExpanded, onAdvance, onS
           ) : null}
         </footer>
       </article>
+
+      <DispatchSheet
+        key={openings}
+        order={order}
+        open={dispatchOpen}
+        onClose={() => setDispatchOpen(false)}
+        onDispatch={() => onSetStatus(order, "sent")}
+      />
     </div>
   );
 }

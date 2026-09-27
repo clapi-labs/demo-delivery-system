@@ -121,9 +121,13 @@ accidente cada vez que alguien hace clic.
 
 | Pieza | Archivo | Responsabilidad única |
 |---|---|---|
-| Esquema | `db/schema.ts` | Las 12 tablas |
+| Esquema | `db/schema.ts` | Las 14 tablas |
 | Conexión | `db/client.ts` | Neon en producción, `pg` en local |
+| Firma de links | `domain/signed-token.ts` | HMAC y caducidad, para los dos tokens |
 | Token del menú | `domain/menu-token.ts` | Firmar y verificar de quién es el link |
+| Token del repartidor | `domain/courier-token.ts` | Su pantalla, sin contraseña (ADR-12) |
+| Domicilios | `domain/delivery.ts` | La ficha del mensajero y el atajo `wa.me` |
+| Día del negocio | `domain/business-day.ts` | "Hoy" en la zona del restaurante, no del servidor |
 | Ventana de 24 h | `domain/session-window.ts` | Si se puede enviar o no |
 | Código de pedido | `domain/order-code.ts` | Generar y reconocer `#PEDIDO` |
 | Catálogo | `domain/catalog.ts` | Tipos y búsqueda (helpers puros) |
@@ -148,7 +152,7 @@ accidente cada vez que alguien hace clic.
 **Regla de oro:** el texto que lee el cliente vive en `messages.ts`, nunca
 incrustado en la lógica. Es lo que permite ajustar el tono sin tocar el motor.
 
-## Los tres endpoints internos
+## Los endpoints internos
 
 Protegidos con `INTERNAL_SECRET`. Disparan mensajes de WhatsApp en nombre del
 restaurante, así que uno abierto es un problema, no una molestia.
@@ -156,7 +160,8 @@ restaurante, así que uno abierto es un problema, no una molestia.
 | Endpoint | Quién llama | Para qué |
 |---|---|---|
 | `POST /api/internal/menu-order` | menú | El cliente envió un pedido |
-| `POST /api/internal/send` | portal | Un agente responde |
+| `POST /api/internal/send` | portal | Un agente responde a un cliente |
+| `POST /api/internal/notify` | portal | La ficha de un pedido a un domiciliario propio |
 | `GET /api/cron/outbox` | Vercel Cron | Entregar los avisos pendientes |
 
 ## Degradación

@@ -7,7 +7,7 @@
 
 | ID | Requerimiento | Estado |
 |---|---|---|
-| RF-01 | Esquema en Neon con las 12 tablas | ✅ |
+| RF-01 | Esquema en Neon (14 tablas: las 12 originales + `couriers` y `deliveries`, Fase 7) | ✅ |
 | RF-02 | Catálogo consultable desde las tres apps | ✅ |
 | RF-03 | Datos semilla del restaurante: categorías, productos, personalizaciones | ✅ |
 
@@ -73,11 +73,23 @@
 | RF-47 | El asistente recomienda por ingredientes | ✅ herramienta `recommend_products`: filtra por la descripción real del catálogo ("una hamburguesa sin queso") |
 | RF-48 | La promoción descuenta el precio real del pedido | ✅ `priceLine()` en `@sistema/shared`, la misma función para la tarjeta del menú, el total del carrito y el recálculo del servidor (RN-02). `npm run verify:promotions` |
 
+## Domicilios · Fase 7 (quién lleva el pedido, ADR-12)
+
+| ID | Requerimiento | Estado |
+|---|---|---|
+| RF-49 | Libreta de repartidores: domiciliarios propios y flotas externas | ✅ tabla `couriers` (una sola, con `kind`), pantalla **Domicilios** en el portal: crear, editar, activar/desactivar y borrar (`GET/POST /api/couriers`) |
+| RF-50 | Asignar un pedido a quien lo lleva, desde la comanda | ✅ hoja de asignación en la tarjeta del pedido; tabla `deliveries`, una fila por pedido (índice único), con el nombre y la modalidad **congelados** |
+| RF-51 | Al domiciliario propio se le manda la ficha por WhatsApp | ✅ la redacta `dispatchTicket()` en `@sistema/shared` y la entrega `apps/bot` (`POST /api/internal/notify`, RN-05). Con la ventana de 24 h cerrada responde el motivo y el portal ofrece el atajo `wa.me` |
+| RF-52 | A la flota externa se le abre el chat con la ficha puesta | ✅ enlace `wa.me` con el texto ya escrito + "Copiar ficha"; campo para anotar el número de la moto que contesta la agencia |
+| RF-53 | Pantalla del repartidor: sus pedidos y "marcar entregado" | ✅ `/repartidor?t=<token>` con token firmado (30 días, sin usuario ni contraseña); marcar entrega pasa por el mismo camino del tablero, así que el cliente recibe su aviso igual (RF-30) |
+| RF-54 | Cierre de turno: quién llevó qué y cómo se cobra | ✅ pestaña "Cierre de turno": entregas, efectivo recogido y lo que queda a cuenta de cada agencia, sobre el día del negocio (no el del servidor) |
+| RF-55 | Rastreo en vivo de la moto | ⬜ no se hará en la demo (ADR-12) |
+
 ## Despliegue · Fase 6
 
 | ID | Requerimiento | Estado |
 |---|---|---|
-| RF-41 | Las tres apps en Vercel con sus variables | ⬜ |
+| RF-41 | Las tres apps en Vercel con sus variables | ✅ las tres despliegan solas al empujar a `main`; verificado con pedidos reales que entran por WhatsApp y llegan al portal |
 | RF-42 | `/api/health` reporta qué variables faltan | ✅ |
 | RF-43 | Endpoints internos protegidos con `INTERNAL_SECRET` | ✅ `/api/internal/menu-order`, `/api/internal/send` y `/api/internal/outbox`; el cron acepta además `CRON_SECRET` |
 
@@ -97,3 +109,6 @@
 | RN-08 | El comprobante se guarda en disco **antes** de intentar leerlo |
 | RN-09 | Con `BOT_ACTIVE=false` (número compartido con Qanelo, ADR-11), ningún envío sale, sin excepción |
 | RN-10 | El precio con promoción lo calcula `priceLine()` y nadie más: navegador y servidor tienen que dar el mismo número |
+| RN-11 | Un pedido tiene **un solo** responsable: reasignar sustituye la fila de `deliveries`, no agrega otra (lo garantiza un índice único) |
+| RN-12 | La ficha del repartidor se redacta en el servidor: lleva el nombre y la dirección del negocio, que el navegador no conoce |
+| RN-13 | El sistema **no le escribe a una flota externa**. Esa conversación sale del WhatsApp del restaurante (ADR-12) |
