@@ -701,6 +701,23 @@ El detalle de un pedido tenía todo junto y sin jerarquía. Qué cambió, en
 
 ---
 
+## Pedidos por llamada: hay plan, no hay código (2026-09-27)
+
+Existe un agente de voz aparte (`demo-voice-agent`, rama `pedidos`) que ya
+toma pedidos hablando por LiveKit, desplegado en Railway. Falta conectarlo a
+este sistema para que un pedido cerrado por llamada aparezca en el portal.
+
+**El plan completo está en [`PLAN_LLAMADAS.md`](PLAN_LLAMADAS.md)** —
+arquitectura, los dos endpoints internos nuevos, los cambios en el repo de
+voz, los tres niveles de respaldo cuando algo falla, y el orden de ejecución.
+
+Lo único que hay que decidir antes de escribir una línea: **esto reabre
+ADR-02** ("un pedido no puede nacer de una conversación"). El plan explica por
+qué la voz es un caso distinto y propone ADR-13. Si eso no se aprueba, el
+resto del plan no aplica.
+
+---
+
 ## Decisiones que conviene no reabrir
 
 Todas en `DECISIONS.md`. Las que más cuesta corregir después:
